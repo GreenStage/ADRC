@@ -50,7 +50,9 @@ Tree * PrefixTree(){
 
 }
 
-
+/*
+ *  Inserts one prefix on a given prefix tree.
+ */
 
 Tree * InsertPrefix(Tree * root_node, char * prefix, int nextHop ){
   
