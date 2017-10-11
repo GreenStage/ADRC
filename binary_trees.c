@@ -4,6 +4,7 @@ typedef struct Tree
 {
   Tree * left, * right; //left is 0, right is 1
   int hopNumber;
+  int bitNum;
 } Tree;
 
 void PrintTable(Tree * t){
@@ -52,28 +53,50 @@ Tree * PrefixTree(){
 
 
 Tree * InsertPrefix(Tree * root_node, char * prefix, int nextHop ){
+  
+  Tree * auxNode = root_node;
+  Tree * nextNode = auxNode;
+  Tree * newNode = NULL;
 
   for(int i = 0; /*prefix[i] != '\0'??*/ i < strlen(prefix); i++){
 
-    Tree * auxNode = root_node;
+    auxNode = nextNode;
 
     if(strcmp(prefix[i], '0') == 0){
       //going left
       if(auxNode->left == NULL){
         newNode = createNewNode(newNode, NULL, NULL, EMPTY_HOP);
         auxNode->left = newNode;
+        nextNode = newNode;
+        
+      }else{
+        //there's already a node here!
+        nextNode = auxNode->left;
 
+      }
 
+    }else{
+      //going right
+      if(auxNode->right == NULL){
+        newNode = createNewNode(newNode, NULL, NULL, EMPTY_HOP);
+        auxNode->right = newNode;
+        nextNode = newNode;
+        
+      }else{
+        //there's already a node here
+        nextNode = auxNode->right;
 
-        tenho de fazer isto com um aux node
       }
 
     }
-
-
-
-
+    
   }
+  /*When I exit this for , auxNode points to the last node inserted
+    That means I can use it to store the hopNumber in the correct position
+  */
+  auxNode->hopNumber = nextHop;
+
+  return root_node;
 
 }
 
