@@ -17,7 +17,7 @@ int main(){
     printf("- Delete prefix (d)\n");
     
     sscanf(stdin, "%c", command);
-
+    printf("oila");
     printf("you chose: %c\n", command);
 
 
