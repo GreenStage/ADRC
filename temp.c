@@ -13,6 +13,7 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
     static int i = 0;
     //int retval;
     static Tree_Node * it = NULL;
+    Tree_Node * aux = NULL;
     //Tree_Node * ptr;
   
     //pra que raio usas isto?
@@ -22,10 +23,10 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
       it = prefixTree->root;
     } 
   
-    ptr = it;
-   
 
     for(i = 0; i < (int) strlen(address); i++){
+
+        aux = it;
         
         switch(address[i]){
             case '0':
@@ -49,6 +50,13 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
 //it now points to the one that shall be removed
     if(!it->left && !it->right){
         //this node has no children, it can be FREE
+
+        if(aux->left == it){
+            aux->left = NULL;
+        }else{
+            aux->right = NULL;
+        }
+
         free(it);//CHECK
 
     }else{
@@ -64,6 +72,6 @@ Tree * makeTreeEven(Tree * prefixTree){
 
     Tree * auxNode = prefixTree;
 
-    
+
 
 }
