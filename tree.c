@@ -1,7 +1,9 @@
 #include "common.h"
 
 #include "tree.h"
-
+/*
+ * Structure that represents a node on a prefix tree with 1 bit per node
+ * */
 typedef struct Tree_Node_ Tree_Node;
 struct Tree_Node_
 {
@@ -9,29 +11,42 @@ struct Tree_Node_
   int nextHop;
 };
 
+/*
+ * Structure that represents a node on a prefix tree with 2 bits per node
+ * */
 typedef struct TwoBitTree_Node_ TwoBitTree_Node;
 struct TwoBitTree_Node_
 {
-  TwoBitTree_Node * c1, * c2, * c3, * c4; //left is 0, right is 1
+  TwoBitTree_Node * c1, * c2, * c3, * c4;
+  //c1 is 00, c2 is 01, c3 is 10, c4 is 11
   int nextHop;
 };
 
-
+/*
+ * Structure that stores que root of a tree
+ * */
 struct Tree_{
   void * root;
   Tree_Type type;
 };
 
+//isto ainda é preciso ?
 struct HorizontalBusElement{
   Tree_Node * ptr;
   void ( *instruction ) (void * arg);
   struct HorizontalBusElement * next;
 };
 
+//isto é só um header aqui perdido no meio ?
 Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int hopNumber);
 
 struct HorizontalBusElement * mHorizontalBus;
 
+
+/*
+ * Recursive function used to visit each node and print the ones who have 
+ * a next hop known to the router.
+ * */
 void PrintTable_sub(Tree_Node * t){
   static char prefix[17];
   static int freePos = 0;
@@ -65,11 +80,16 @@ void PrintTable_sub(Tree_Node * t){
 
   return;
 }
-
+/*
+ * Function used to print the prefix table
+ * */
 void PrintTable(Tree * prefixTree){
   PrintTable_sub(prefixTree->root);
 }
 
+/*
+ * Initialization of the tree
+ * */
 Tree * tree_init(Tree_Type type){
 
   Tree * new;
@@ -82,6 +102,10 @@ Tree * tree_init(Tree_Type type){
   return new;
 }
 
+/*
+ * Function that generates a prefix tree based on a table read from a 
+ * text file.
+ * */
 void PrefixTree(Tree * prefrixTree, char * file_name){
 
   char line[100];
@@ -121,7 +145,9 @@ void PrefixTree(Tree * prefrixTree, char * file_name){
   
 
 }
-
+/*
+ * Function that returns the next-hop for a given address
+ * */
 int LookUp(Tree * prefixTree, char * address){
   static int i = 0;
   int retval;
@@ -161,6 +187,10 @@ int LookUp(Tree * prefixTree, char * address){
 
 }
 
+/*
+ * Function used to insert a prefix and the associated next-hop
+ * in a prefix tree
+ * */
 Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   int i;
   Tree_Node * auxNode;
@@ -212,6 +242,9 @@ Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
 
 }
 
+/*
+ * Function that generates a new node for a given prefix tree
+ * */
 Tree_Node * createNewNode(Tree_Node * new_left,
                     Tree_Node * new_right, int nextHop){
   
@@ -230,6 +263,7 @@ Tree_Node * createNewNode(Tree_Node * new_left,
 
 }
 
+//acho que nao precisa de ser recursiva
 TwoBitTree_Node *  BinaryToTwoBit_sub(Tree_Node* ptr){
   static Tree_Node * parent = NULL;
   Tree_Node * mParent = parent;
@@ -248,6 +282,9 @@ TwoBitTree_Node *  BinaryToTwoBit_sub(Tree_Node* ptr){
   return new_ptr;
 }
 
+/*
+ * Function used to convert a binary tree into a two bit prefix tree
+ * */
 Tree * BinaryToTwoBit(Tree * binaryTree){
   Tree_Node * ptr;
   TwoBitTree_Node * newRoot;
