@@ -59,3 +59,11 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
   
     return prefixTree;
 }  
+
+Tree * makeTreeEven(Tree * prefixTree){
+
+    Tree * auxNode = prefixTree;
+
+    
+
+}
