@@ -157,7 +157,7 @@ int LookUp(Tree * prefixTree, char * address){
   retval = LookUp(prefixTree,address++);
   i--;
 
-  return retval == 0 ? ptr->nextHop : it->nextHop;
+  return retval == 0 ? ptr->nextHop : retval;
 
 }
 
