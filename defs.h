@@ -11,6 +11,6 @@
 #define EXIT_MISSING_ARG 2
 
 #define EMPTY_HOP 0
-
+#define MAX_TREE_HEIGHT 16
 
 #endif
