@@ -47,7 +47,7 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
         }
     
     }
-//it now points to the one that shall be removed
+    //it now points to the one that shall be removed
     if(!it->left && !it->right){
         //this node has no children, it can be FREE
 
@@ -71,6 +71,8 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
 Tree * makeTreeEven(Tree * prefixTree){
 
     Tree * auxNode = prefixTree;
+
+    
 
 
 
