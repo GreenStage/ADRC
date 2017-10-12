@@ -106,20 +106,20 @@ Tree * tree_init(Tree_Type type){
  * Function that generates a prefix tree based on a table read from a 
  * text file.
  * */
-void PrefixTree(Tree * prefrixTree, char * file_name){
+void PrefixTree(Tree * prefixTree, char * file_name){
 
   char line[100];
   FILE * fp;
   char prefix[25];
   int nextHop;
 
-  NULLPO_RETV(prefrixTree);
+  NULLPO_RETV(prefixTree);
 
   //check to see if there's already an existing tree
-  if(prefrixTree->root == NULL){
+  if(prefixTree->root == NULL){
     //create root node
 
-    prefrixTree->root  = createNewNode(NULL, NULL, -1);
+    prefixTree->root  = createNewNode(NULL, NULL, -1);
 
   }
 
@@ -133,7 +133,7 @@ void PrefixTree(Tree * prefrixTree, char * file_name){
       #endif
       sscanf(line, "%s %d", prefix, &nextHop);
 
-      InsertPrefix(prefrixTree->root , prefix, nextHop);
+      InsertPrefix(prefixTree->root , prefix, nextHop);
 
     }
       fclose(fp);
@@ -192,52 +192,19 @@ int LookUp(Tree * prefixTree, char * address){
  * in a prefix tree
  * */
 Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
-  int i;
-  Tree_Node * auxNode;
-  Tree_Node * nextNode;
+  
   Tree_Node * newNode = NULL;
+  Tree_Node * ptr = prefixTree->root;
 
   NULLPO_RETR(prefixTree,NULL);
-  auxNode = prefixTree->root;
-  nextNode = auxNode;
+  TREE_PARSE(ptr,prefix,{ 
+    newNode = createNewNode(NULL, NULL, EMPTY_HOP);
+    ptr->left = newNode;
+    ptr = newNode;
+  });
 
-  for(i = 0; /*prefix[i] != '\0'??*/ i < (int) strlen(prefix); i++){
-
-    if(prefix[i] == '0'){
-      //going left
-      if(auxNode->left == NULL){
-        newNode = createNewNode(NULL, NULL, EMPTY_HOP);
-        auxNode->left = newNode;
-        nextNode = newNode;
-        
-      }else{
-        //there's already a node here!
-        nextNode = auxNode->left;
-
-      }
-
-    } else{
-      //going right
-      if(auxNode->right == NULL){
-        newNode = createNewNode(NULL, NULL, EMPTY_HOP);
-        auxNode->right = newNode;
-        nextNode = newNode;
-        
-      }else{
-        //there's already a node here
-        nextNode = auxNode->right;
-
-      }
-
-    }
-    
-    auxNode = nextNode;
-  }
-  /*When I exit this for , auxNode points to the last node inserted
-    That means I can use it to store the nextHop in the correct position
-  */
-  auxNode->nextHop = nextHop;
-
+  ptr->nextHop = nextHop;
+  
   return prefixTree;
 
 }
