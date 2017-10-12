@@ -2,37 +2,51 @@
 
 #include "tree.h"
 
-struct Tree_
+typedef struct Tree_Node_ Tree_Node;
+struct Tree_Node_
 {
-  Tree * left, * right; //left is 0, right is 1
+  Tree_Node * left, * right; //left is 0, right is 1
   int nextHop;
 };
 
+typedef struct TwoBitTree_Node_ TwoBitTree_Node;
+struct TwoBitTree_Node_
+{
+  TwoBitTree_Node * c1, * c2, * c3, * c4; //left is 0, right is 1
+  int nextHop;
+};
+
+
+struct Tree_{
+  void * root;
+  Tree_Type type;
+};
+
 struct HorizontalBusElement{
-  Tree * ptr;
+  Tree_Node * ptr;
   void ( *instruction ) (void * arg);
   struct HorizontalBusElement * next;
 };
 
-Tree * root_node;
+Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int hopNumber);
+
 struct HorizontalBusElement * mHorizontalBus;
 
-void PrintTable_sub(Tree * t){
+void PrintTable_sub(Tree_Node * t){
   static char prefix[17];
   static int freePos = 0;
   int pos;
 
   pos = freePos;
   
-  if(t == NULL || freePos > 15){
-    return;
-  }
+  NULLPO_RETV(t);
+  ASSERT_RETV(freePos > 15);
 
   if(t->nextHop > 0){
     char auxStr[MAX_TREE_HEIGHT +1];
 
     memset(auxStr,'\0',MAX_TREE_HEIGHT);
-    memcpy(auxStr,prefix, (freePos+1) *sizeof(char)) ;
+    memcpy(auxStr,prefix, (freePos+1) * sizeof(char)) ;
     printf("Hop: %d\t",t->nextHop);
     printStr(auxStr);
   }
@@ -51,35 +65,37 @@ void PrintTable_sub(Tree * t){
 
   return;
 }
-void PrintTable(){
-  PrintTable_sub(root_node);
-}
-/*
-void printBusRow(HorizontalBusElement * ptr){
-  Tree * treePtr;
-  while(ptr != NULL){
-    treePtr = (Tree *) ptr;
-    printf("%d\n",nextHop);
 
-  }
-}
-*/
-void tree_init(){
-  root_node = NULL;
+void PrintTable(Tree * prefixTree){
+  PrintTable_sub(prefixTree->root);
 }
 
-void PrefixTree(){
+Tree * tree_init(Tree_Type type){
+
+  Tree * new;
+
+  CREATE(new,1);
+  NULLPO_RETRE(new,NULL,"Error allocating tree structure");
+
+  new->root = NULL;
+  new->type = type;
+  return new;
+}
+
+void PrefixTree(Tree * prefrixTree, char * file_name){
 
   char line[100];
   FILE * fp;
   char prefix[25];
   int nextHop;
 
+  NULLPO_RETV(prefrixTree);
+
   //check to see if there's already an existing tree
-  if(root_node == NULL){
+  if(prefrixTree->root == NULL){
     //create root node
 
-    root_node = createNewNode(NULL, NULL, -1);
+    prefrixTree->root  = createNewNode(NULL, NULL, -1);
 
   }
 
@@ -93,7 +109,7 @@ void PrefixTree(){
       #endif
       sscanf(line, "%s %d", prefix, &nextHop);
 
-      InsertPrefix(root_node, prefix, nextHop);
+      InsertPrefix(prefrixTree->root , prefix, nextHop);
 
     }
       fclose(fp);
@@ -106,42 +122,54 @@ void PrefixTree(){
 
 }
 
-int LookUp(char * address){
-  int i;
+int LookUp(Tree * prefixTree, char * address){
+  static int i = 0;
   int retval;
-  static Tree * it = NULL;
-  Tree * ptr;
+  static Tree_Node * it = NULL;
+  Tree_Node * ptr;
 
-  if(it == NULL) it = root_node;
+  ASSERT_RETR(i > (int) strlen(address) - 1, -1);
+
+  if(it == NULL){
+    it = prefixTree->root;
+  } 
+
   ptr = it;
-  for(i = 0; i < (int) strlen(address) ; i++){
-    switch(address[i]){
-      case '0':
-        if(!it->left){
-          return it->nextHop;
-        }
-        it= it->left;
-        break;
-      case '1':
-        if(!it->right){
-          return it->nextHop;
-        }
-        it= it->right;
-        break;
-      default:
-        return -1;
+ 
+  switch(address[i]){
+    case '0':
+      if(!it->left){
+        return it->nextHop;
+      }
+      it= it->left;
+      break;
+    case '1':
+      if(!it->right){
+        return it->nextHop;
+      }
+      it= it->right;
+      break;
+    default:
+      return -1;
 
-    }
-    retval = LookUp(address++);
-    return retval == 0 ? ptr->nextHop : it->nextHop;
   }
+  i++;
+  retval = LookUp(prefixTree,address++);
+  i--;
+
+  return retval == 0 ? ptr->nextHop : it->nextHop;
+
 }
 
-Tree * InsertPrefix(Tree * root_node, char * prefix, int nextHop ){
+Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   int i;
-  Tree * auxNode = root_node;
-  Tree * nextNode = auxNode;
-  Tree * newNode = NULL;
+  Tree_Node * auxNode;
+  Tree_Node * nextNode;
+  Tree_Node * newNode = NULL;
+
+  NULLPO_RETR(prefixTree,NULL);
+  auxNode = prefixTree->root;
+  nextNode = auxNode;
 
   for(i = 0; /*prefix[i] != '\0'??*/ i < (int) strlen(prefix); i++){
 
@@ -180,36 +208,61 @@ Tree * InsertPrefix(Tree * root_node, char * prefix, int nextHop ){
   */
   auxNode->nextHop = nextHop;
 
-  return root_node;
+  return prefixTree;
 
 }
 
-Tree * createNewNode(Tree * new_left,
-                    Tree * new_right, int nextHop){
+Tree_Node * createNewNode(Tree_Node * new_left,
+                    Tree_Node * new_right, int nextHop){
   
   
-  Tree * newNode = (Tree*) malloc(sizeof(Tree));
+  Tree_Node * newNode;
+  
+  CREATE(newNode,1);
+  NULLPO_RETRE(newNode,NULL,"Error allocating memory for your new node.");
 
-  if(newNode == NULL){
-    printf("Error allocating memory for your new node. Exitting.\n");
-    exit(EXIT_FAILURE);
-  }
 
   newNode->left = new_left;
   newNode->right = new_right;
   newNode->nextHop = nextHop;
-/*
-  if(newNode->nextHop){
-    struct HorizontalBusElement * mElement, *aux;
-    mElement = (struct HorizontalBusElement*) malloc(sizeof(struct HorizontalBusElement));
-    memset(mElement,0,sizeof(struct HorizontalBusElement));
-    for( aux = mHorizontalBus[floorNumber]; aux->next != NULL; aux = aux->next);
-    aux->next = mElement;
-    mElement->ptr = newNode;
-  }
-*/
-
   
   return newNode;
 
+}
+
+TwoBitTree_Node *  BinaryToTwoBit_sub(Tree_Node* ptr){
+  static Tree_Node * parent = NULL;
+  Tree_Node * mParent = parent;
+  TwoBitTree_Node * new_ptr;
+  NULLPO_RETR(ptr,NULL);
+
+  parent = ptr;
+  BinaryToTwoBit_sub(ptr->left);
+  BinaryToTwoBit_sub(ptr->right);
+
+  parent = mParent;
+
+  CREATE(new_ptr,1);
+  NULLPO_RETR(new_ptr,NULL);
+
+  return new_ptr;
+}
+
+Tree * BinaryToTwoBit(Tree * binaryTree){
+  Tree_Node * ptr;
+  TwoBitTree_Node * newRoot;
+  Tree * retval;
+
+  NULLPO_RETRE(binaryTree,NULL,"Error: Tree is null?");
+  ASSERT_RETRE(binaryTree->type != BINARY,NULL,"Error: Tree is not binary");
+
+  ptr = binaryTree->root;
+  newRoot = BinaryToTwoBit_sub(ptr);
+  
+  CREATE(retval,1);
+  NULLPO_RETR(retval,NULL);
+
+  retval->root = newRoot;
+  retval->type = TWOBIT;
+  return retval;
 }

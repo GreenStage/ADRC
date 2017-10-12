@@ -19,20 +19,25 @@ int main(int argc, char * argv[]){
         "\t- Lookup next-hop (n)",
         "\t- Insert new prefix (i)",
         "\t- Delete prefix (d)",
+        "\t- Binary tree to two bit (b)",
+        "\t- Print table even (e)",
         "\t- Exit (q)"
     };
+
+    Tree * prefixTree;
     /*Argument Checks*/
     if(argc < 2){
-        foreach(usage,SMALL_STR_SIZE* sizeof(char),sizeof(usage)/ (SMALL_STR_SIZE * sizeof(char)),(void*)(void*) printStr);
+        foreach(usage,sizeof(usage[0]),arraylength(usage),(void*)(void*) printStr);
         exit(EXIT_MISSING_ARG);
     }
-    tree_init();
-    PrefixTree(argv[1]);
+
+    prefixTree = tree_init(BINARY);
+    PrefixTree(prefixTree,argv[1]);
 
     //TODO read tree
 
     printStr("ADRC - First Mini Project");
-    foreach(help,SMALL_STR_SIZE* sizeof(char),sizeof(help)/ (SMALL_STR_SIZE * sizeof(char)),(void*)(void*) printStr);
+    foreach(help,sizeof(help[0]),arraylength(help),(void*)(void*) printStr);
 
     
     while(!quit){
@@ -42,23 +47,28 @@ int main(int argc, char * argv[]){
         sscanf(line, "%c %s", &command,extra);
         switch(command){
             case 'p':
-                PrintTable();
+                PrintTable(prefixTree);
                 break;
             case 'n':
 
                 memcpy(address,extra,sizeof(char) * 16);
-                printf("Next Hop: %d\n",LookUp(extra));
+                printf("Next Hop: %d\n",LookUp(prefixTree,extra));
                 break;
             case 'i':
                 break;
             case 'd':
+                break;
+            case 'b':
+                prefixTree = BinaryToTwoBit(prefixTree);
+                break;
+            case 'e':
                 break;
             case 'q':
                 quit = 1;
                 break;
             default:
                 printStr("Invalid command.");
-                foreach(help,SMALL_STR_SIZE* sizeof(char),sizeof(help)/ (SMALL_STR_SIZE * sizeof(char)),(void*)(void*) printStr);
+                foreach(help,sizeof(help[0]),arraylength(help),(void*)(void*) printStr);
                 break;
         }
     }
