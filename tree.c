@@ -17,7 +17,7 @@ struct Tree_Node_
 typedef struct TwoBitTree_Node_ TwoBitTree_Node;
 struct TwoBitTree_Node_
 {
-  TwoBitTree_Node * c1, * c2, * c3, * c4;
+  TwoBitTree_Node * c[4];
   //c1 is 00, c2 is 01, c3 is 10, c4 is 11
   int nextHop;
 };
@@ -26,16 +26,42 @@ struct TwoBitTree_Node_
  * Structure that stores que root of a tree
  * */
 struct Tree_{
-  Tree_Node * root;
+  void * root;
   Tree_Type type;
 };
 
-//isto ainda é preciso ?
-struct HorizontalBusElement{
-  Tree_Node * ptr;
-  void ( *instruction ) (void * arg);
-  struct HorizontalBusElement * next;
-};
+
+typedef enum Tree_Parse_State_{
+  LEFT,
+  RIGHT,
+} Tree_Parse_State;
+
+#define TREE_PARSE(A,P,B,O){ \
+  int i; \
+  Tree_Parse_State state; \
+  Tree_Node * lastHop; \
+  for(i = 0, lastHop = A; i < (int) strlen(B); i++){ \
+      if(A->nextHop > 0) lastHop = A; \
+      if(B[i] == '0'){ \
+          P = A; \
+          state = LEFT; \
+          if(A->left == NULL){ \
+              O; \
+          } \
+          else A = A->left; \
+      } \
+      else if(B[i] == '1'){ \
+          P = A; \
+          state = RIGHT; \
+          if(A->right == NULL){ \
+              O; \
+          } \
+          else A = A->right; \
+      } \
+      else break; \
+  } \
+}
+
 
 //isto é só um header aqui perdido no meio ?
 Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int hopNumber);
@@ -149,11 +175,12 @@ void PrefixTree(Tree * prefixTree, char * file_name){
  * Function that returns the next-hop for a given address
  * */
 int LookUp(Tree * prefixTree, char * address){
-  //static int i = 0;
-  int retval = 9823;
+ 
+  Tree_Node * parent;
   Tree_Node * ptr = prefixTree->root;
 
-  TREE_PARSE(ptr,address,{
+
+  TREE_PARSE(ptr,parent,address,{
     return lastHop->nextHop;
   });
 
@@ -166,19 +193,25 @@ int LookUp(Tree * prefixTree, char * address){
  * */
 Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   
-  Tree_Node * newNode = NULL;
-
+  Tree_Node * newNode = NULL, *parent;
   Tree_Node * ptr = prefixTree->root;
  
 
   NULLPO_RETR(prefixTree,NULL);
-  TREE_PARSE(ptr,prefix,{ 
-    newNode = createNewNode(NULL, NULL, EMPTY_HOP);
+  TREE_PARSE(ptr,parent,prefix,{ 
+    
+    switch(state){
+      case RIGHT:
+        newNode = createNewNode(NULL, NULL, EMPTY_HOP);
+        ptr->right = newNode;
+        break;
+      
+      case LEFT:
+        newNode = createNewNode(NULL, NULL, EMPTY_HOP);
+        ptr->left = newNode;
+        break;
 
-    if(state == RIGHT)
-      ptr->right = newNode;
-    else ptr->left = newNode;
-
+    }
     ptr = newNode;
   });
 
@@ -191,9 +224,7 @@ Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
 /*
  * Function that generates a new node for a given prefix tree
  * */
-Tree_Node * createNewNode(Tree_Node * new_left,
-                    Tree_Node * new_right, int nextHop){
-  
+Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHop){
   
   Tree_Node * newNode;
   
@@ -209,51 +240,77 @@ Tree_Node * createNewNode(Tree_Node * new_left,
 
 }
 
-//acho que nao precisa de ser recursiva
-TwoBitTree_Node *  BinaryToTwoBit_sub(Tree_Node* ptr){
-  static Tree_Node * parent = NULL;
-  Tree_Node * mParent = parent;
-  TwoBitTree_Node * new_ptr;
-  NULLPO_RETR(ptr,NULL);
-
-  parent = ptr;
-  BinaryToTwoBit_sub(ptr->left);
-  BinaryToTwoBit_sub(ptr->right);
-
-  parent = mParent;
-
-  CREATE(new_ptr,1);
-  NULLPO_RETR(new_ptr,NULL);
-
-  return new_ptr;
-}
 
 Tree * DeletePrefix(Tree * prefixTree, char * address){
 
   //int retval;
   static Tree_Node * it = NULL;
-  Tree_Node * aux = NULL;
+  Tree_Node * parent;
   //Tree_Node * ptr;
 
   NULLPO_RETRE(prefixTree,NULL,"Error: Empty Tree");
+  it = prefixTree->root;
+  TREE_PARSE(it,parent,address,{});
 
-  TREE_PARSE(it,address,{ 
-    if(!it->left && !it->right){
-      //this node has no children, it can be FREE
-      if(aux->left == it) aux->left = NULL;
-      else aux->right = NULL;
-
-      free(it);//CHECK
-    }
-    else{
-        //this node has some children, it needs to be here for them
-        it->nextHop = 0;
-    }
-  });
-
+  if(!it->left && !it->right){
+    //this node has no children, it can be FREE
+    if(parent->left == it) parent->left = NULL;
+    else parent->right = NULL;
+    free(it);
+  }
+  else{
+      //this node has some children, it needs to be here for them
+      it->nextHop = 0;
+  }
   return prefixTree;
 }  
 
+
+void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
+  static Tree_Node * parent = NULL;
+  Tree_Node * mParent = parent;
+
+
+  NULLPO_RETV(ptr);
+  NULLPO_RETV(new_ptr);
+
+  if(ptr->nextHop > 0) new_ptr->nextHop =ptr->nextHop;
+
+  if(ptr->left){
+    CREATE(new_ptr->c[0],1);
+    CREATE(new_ptr->c[1],1);
+    new_ptr->c[0]->nextHop = new_ptr->c[1]->nextHop = ptr->left->nextHop;
+
+    if(ptr->left->left){
+      BinaryToTwoBit_sub(ptr->left->left,new_ptr->c[0]);
+    }
+    if(ptr->left->right){
+      BinaryToTwoBit_sub(ptr->left->right,new_ptr->c[1]);
+    }   
+  }
+  if(ptr->right){
+    CREATE(new_ptr->c[2],1);
+    CREATE(new_ptr->c[3],1);
+    new_ptr->c[2]->nextHop = new_ptr->c[3]->nextHop = ptr->right->nextHop;
+
+    if(ptr->right->left){
+      BinaryToTwoBit_sub(ptr->right->left,new_ptr->c[2]);
+    }
+    if(ptr->right->right){
+      BinaryToTwoBit_sub(ptr->right->right,new_ptr->c[3]);
+    }   
+  }
+#ifdef DEBUG
+  printf("NODE %d - ",new_ptr->nextHop);
+  printf("Childs: 00 : %d, 01: %d , 10: %d, 11 : %d\n",
+   new_ptr->c[0] ? new_ptr->c[0]->nextHop : -2,
+   new_ptr->c[1] ? new_ptr->c[1]->nextHop : -2,
+   new_ptr->c[2] ? new_ptr->c[2]->nextHop : -2,
+   new_ptr->c[3] ? new_ptr->c[3]->nextHop : -2);
+  printf("--------------------------\n");
+  return;
+#endif
+}
 
 /*
  * Function used to convert a binary tree into a two bit prefix tree
@@ -267,7 +324,9 @@ Tree * BinaryToTwoBit(Tree * binaryTree){
   ASSERT_RETRE(binaryTree->type != BINARY,NULL,"Error: Tree is not binary");
 
   ptr = binaryTree->root;
-  newRoot = BinaryToTwoBit_sub(ptr);
+
+  CREATE(newRoot,1);
+  BinaryToTwoBit_sub(ptr,newRoot);
   
   CREATE(retval,1);
   NULLPO_RETR(retval,NULL);

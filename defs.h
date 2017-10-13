@@ -44,7 +44,7 @@ do {  \
     do{ \
         ptr =  malloc(n * sizeof(__typeof__(*ptr))); \
         if(ptr == NULL){ \
-            printf("Cannot create memmory: line %d in %s",__LINE__,__func__); \
+            printf("Cannot create memmory: line %d in %s\n",__LINE__,__func__); \
         } \
         else{ \
             memset(ptr,0,n * sizeof(__typeof__(*ptr))); \
@@ -52,4 +52,14 @@ do {  \
     } while(0)
 
 #define arraylength(t) ( sizeof(t) / sizeof(t[0]) )
+
+#define foreach(A,HOP_SIZE,NUM_IT,O) { \
+    int iterator; \
+    for(iterator = 0; iterator < NUM_IT; iterator++){ \
+        O; \
+    } \
+}
+
+#define EMPTY_STRING(A) ({ (A == NULL || strlen(A) < 1) ?  1 : 0;})
+
 #endif
