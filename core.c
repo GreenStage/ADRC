@@ -1,11 +1,13 @@
-#include "common.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "defs.h"
 #include "tree.h"
 
 int main(int argc, char * argv[]){
     int quit = 0;
     char command;
-    char buffer[100];
     char line[100];
     char address[17];
     char extra1[SMALL_STR_SIZE], extra2[SMALL_STR_SIZE];
@@ -15,29 +17,30 @@ int main(int argc, char * argv[]){
     };
     char help[][SMALL_STR_SIZE] = {
         "MENU",
-        "\t- Print table (p)",
-        "\t- Lookup next-hop (n)",
-        "\t- Insert new prefix (i)",
-        "\t- Delete prefix (d)",
-        "\t- Binary tree to two bit (b)",
-        "\t- Print table even (e)",
+        "\t- Print table: p",
+        "\t- Lookup next-hop: n <prefix>",
+        "\t- Insert new prefix: n <prefix>",
+        "\t- Delete prefix: d <prefix>",
+        "\t- Binary tree to two bit: b",
+        "\t- Print table even: e",
         "\t- Exit (q)"
     };
 
-    Tree * prefixTree;
+    Tree * prefixTree, *twoBitTree;
     /*Argument Checks*/
     if(argc < 2){
-        foreach(usage,sizeof(usage[0]),arraylength(usage), { printStr(usage[iterator]); });
-        exit(EXIT_MISSING_ARG);
+        foreach(arraylength(usage), { PRINT_STR(usage[iterator]); });
+        return EXIT_MISSING_ARG;
     }
 
-    prefixTree = tree_init(BINARY);
-    PrefixTree(prefixTree,argv[1]);
+    prefixTree = PrefixTree(argv[1]);
+    if(prefixTree == NULL){
+        foreach(arraylength(usage), { PRINT_STR(usage[iterator]); });
+        return EXIT_FAILURE;
+    }
 
-    //TODO read tree
-
-    printStr("ADRC - First Mini Project");
-    foreach(help,sizeof(help[0]),arraylength(help), { printStr(help[iterator]); });
+    PRINT_STR("ADRC - First Mini Project");
+    foreach(arraylength(help), { PRINT_STR(help[iterator]); });
 
     
     while(!quit){
@@ -73,22 +76,23 @@ int main(int argc, char * argv[]){
                 }
                 break;
             case 'b':
-                prefixTree = BinaryToTwoBit(prefixTree);
+                twoBitTree = BinaryToTwoBit(prefixTree);
                 break;
             case 'e':
+                PrintTableEven(twoBitTree);
                 break;
             case 'q':
                 quit = 1;
                 break;
             default:
-                printStr("Invalid command.");
-                foreach(help,sizeof(help[0]),arraylength(help),{ printStr(help[iterator]); });
+                PRINT_STR("Invalid command.");
+                foreach(arraylength(help),{ PRINT_STR(help[iterator]); });
                 break;
         }
     }
 
-    printf("You chose: %c\n",command);
-
+    Tree_Destroy(prefixTree);
+    Tree_Destroy(twoBitTree);
 
     exit(EXIT_SUCCESS);
 }

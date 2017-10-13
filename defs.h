@@ -1,8 +1,9 @@
 #ifndef DEFINES_HEADER
 #define DEFINES_HEADER
 
+
 /*Debug mode switch*/
-#define DEBUG
+/*#define DEBUG*/
 
 #define SMALL_STR_SIZE 50
 
@@ -40,26 +41,30 @@ do {  \
 #define NULLPO_RETR(t,r) ASSERT_RETR(t == NULL,r)
 #define NULLPO_RETVE(t,v) ASSERT_RETVE(t == NULL,v)
 #define NULLPO_RETRE(t,r,m) ASSERT_RETRE(t == NULL,r,m)
-#define CREATE(ptr,n) \
-    do{ \
-        ptr =  malloc(n * sizeof(__typeof__(*ptr))); \
-        if(ptr == NULL){ \
-            printf("Cannot create memmory: line %d in %s\n",__LINE__,__func__); \
-        } \
-        else{ \
-            memset(ptr,0,n * sizeof(__typeof__(*ptr))); \
-        } \
-    } while(0)
 
+/*ARRAY MACROS*/
 #define arraylength(t) ( sizeof(t) / sizeof(t[0]) )
-
-#define foreach(A,HOP_SIZE,NUM_IT,O) { \
+#define foreach(NUM_IT,O) { \
     int iterator; \
-    for(iterator = 0; iterator < NUM_IT; iterator++){ \
+    for(iterator = 0; iterator < (int) NUM_IT; iterator++){ \
         O; \
     } \
 }
 
 #define EMPTY_STRING(A) ({ (A == NULL || strlen(A) < 1) ?  1 : 0;})
+#define PRINT_STR(A) printf("%s\n",A);
+
+/*Memmory macros*/
+#define CREATE(ptr,n) \
+do{ \
+    ptr =  malloc(n * sizeof(__typeof__(*ptr))); \
+    if(ptr == NULL){ \
+        printf("Cannot create memmory: line %d in %s\n",__LINE__,__func__); \
+    } \
+    else{ \
+        memset(ptr,0,n * sizeof(__typeof__(*ptr))); \
+    } \
+} while(0)
+
 
 #endif

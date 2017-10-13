@@ -1,13 +1,19 @@
-#include "common.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "defs.h"
 #include "tree.h"
+
+#define DEFAULT_ROOT_NODE -1
+
 /*
  * Structure that represents a node on a prefix tree with 1 bit per node
  * */
 typedef struct Tree_Node_ Tree_Node;
 struct Tree_Node_
 {
-  Tree_Node * left, * right; //left is 0, right is 1
+  /*Left is 0, Right is 1*/
+  Tree_Node * left, * right; 
   int nextHop;
 };
 
@@ -18,7 +24,7 @@ typedef struct TwoBitTree_Node_ TwoBitTree_Node;
 struct TwoBitTree_Node_
 {
   TwoBitTree_Node * c[4];
-  //c1 is 00, c2 is 01, c3 is 10, c4 is 11
+  /*c1 is 00, c2 is 01, c3 is 10, c4 is 11 */
   int nextHop;
 };
 
@@ -32,9 +38,20 @@ struct Tree_{
 
 
 typedef enum Tree_Parse_State_{
-  LEFT,
-  RIGHT,
+  EMPTY_LEFT,
+  EMPTY_RIGHT,
 } Tree_Parse_State;
+
+#define PRINT_NODE_2BIT(N) \
+do{ \
+  printf("NODE %d - ",N->nextHop); \
+  printf("Childs: 00 : %d, 01: %d , 10: %d, 11 : %d\n", \
+   N->c[0] ? N->c[0]->nextHop : -2, \
+   N->c[1] ? N->c[1]->nextHop : -2, \
+   N->c[2] ? N->c[2]->nextHop : -2, \
+   N->c[3] ? N->c[3]->nextHop : -2); \
+  printf("--------------------------\n"); \
+}while(0)
 
 #define TREE_PARSE(A,P,B,O){ \
   int i; \
@@ -44,7 +61,7 @@ typedef enum Tree_Parse_State_{
       if(A->nextHop > 0) lastHop = A; \
       if(B[i] == '0'){ \
           P = A; \
-          state = LEFT; \
+          state = EMPTY_LEFT; \
           if(A->left == NULL){ \
               O; \
           } \
@@ -52,7 +69,7 @@ typedef enum Tree_Parse_State_{
       } \
       else if(B[i] == '1'){ \
           P = A; \
-          state = RIGHT; \
+          state = EMPTY_RIGHT; \
           if(A->right == NULL){ \
               O; \
           } \
@@ -63,10 +80,15 @@ typedef enum Tree_Parse_State_{
 }
 
 
-//isto é só um header aqui perdido no meio ?
+/*isto é só um header aqui perdido no meio ?*/
+Tree *  PrefixTree(char * file_name);
 Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int hopNumber);
+void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr);
+void PrintTableEven_sub(TwoBitTree_Node * t);
+void PrintTable_sub(Tree_Node * t);
+void BinaryTreeDestroy_sub(Tree_Node * t);
+void TwoBitTreeDestroy_sub(TwoBitTree_Node * t);
 
-struct HorizontalBusElement * mHorizontalBus;
 
 
 /*
@@ -87,9 +109,14 @@ void PrintTable_sub(Tree_Node * t){
     char auxStr[MAX_TREE_HEIGHT +1];
 
     memset(auxStr,'\0',MAX_TREE_HEIGHT);
-    memcpy(auxStr,prefix, freePos * sizeof(char)) ;
+    memcpy(auxStr,prefix, freePos * sizeof(char));
+
     printf("Hop: %d\t",t->nextHop);
-    printStr(auxStr);
+
+    if(freePos == 0){
+      PRINT_STR("OTHERS");
+    }
+    else PRINT_STR(auxStr);
   }
 
   if(t->left){
@@ -106,10 +133,15 @@ void PrintTable_sub(Tree_Node * t){
 
   return;
 }
-/*
- * Function used to print the prefix table
- * */
+
+/**************************************************************************** 
+* NAME:        PrintTable                                     
+* DESCRIPTION: Calls Printable_sub in order to print da table recursivly. 
+* ARGUMENTS:   args 
+* RETURNS:     void
+***************************************************************************/ 
 void PrintTable(Tree * prefixTree){
+  NULLPO_RETVE(prefixTree,"Error: tree is empty.");
   PrintTable_sub(prefixTree->root);
 }
 
@@ -132,44 +164,42 @@ Tree * tree_init(Tree_Type type){
  * Function that generates a prefix tree based on a table read from a 
  * text file.
  * */
-void PrefixTree(Tree * prefixTree, char * file_name){
+Tree * PrefixTree(char * file_name){
 
   char line[100];
+  Tree * prefixTree;
   FILE * fp;
   char prefix[25];
   int nextHop;
 
-  NULLPO_RETV(prefixTree);
+  prefixTree = tree_init(BINARY);
+  NULLPO_RETR(prefixTree,NULL);
+  NULLPO_RETR(file_name,NULL);
 
-  //check to see if there's already an existing tree
+  /*check to see if there's already an existing tree*/
   if(prefixTree->root == NULL){
-    //create root node
-
-    prefixTree->root  = createNewNode(NULL, NULL, -1);
-
+    prefixTree->root  = createNewNode(NULL, NULL, DEFAULT_ROOT_NODE);
   }
 
-  //open file and start reading to create tree
-  fp = fopen("example_tree.txt", "r");
-
-  if (fp) {
-    while (fgets(line, sizeof(line), fp)) {
-      #ifdef DEBUG
-        printf("%s\n", line);
-      #endif
-      sscanf(line, "%s %d", prefix, &nextHop);
-
-      InsertPrefix(prefixTree, prefix, nextHop);
-
-    }
-      fclose(fp);
-  }
-  else{
-      printf("Error opening file");
-      exit(EXIT_FAILURE);
-  }
+  /*open file and start reading to create tree*/
+  fp = fopen(file_name, "r");
+  NULLPO_RETRE(fp,NULL,"Error opening file.");
   
+  while (fgets(line, sizeof(line), fp)) {
+    #ifdef DEBUG
+      printf("%s\n", line);
+    #endif
+    sscanf(line, "%s %d", prefix, &nextHop);
 
+    if(strncmp(prefix,"D",1) == 0){
+      Tree_Node * root = prefixTree->root;
+      root->nextHop = nextHop;
+    }
+    else InsertPrefix(prefixTree, prefix, nextHop);
+
+  }
+  fclose(fp);
+  return prefixTree;
 }
 /*
  * Function that returns the next-hop for a given address
@@ -201,12 +231,12 @@ Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   TREE_PARSE(ptr,parent,prefix,{ 
     
     switch(state){
-      case RIGHT:
+      case EMPTY_RIGHT:
         newNode = createNewNode(NULL, NULL, EMPTY_HOP);
         ptr->right = newNode;
         break;
       
-      case LEFT:
+      case EMPTY_LEFT:
         newNode = createNewNode(NULL, NULL, EMPTY_HOP);
         ptr->left = newNode;
         break;
@@ -243,23 +273,23 @@ Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHo
 
 Tree * DeletePrefix(Tree * prefixTree, char * address){
 
-  //int retval;
   static Tree_Node * it = NULL;
   Tree_Node * parent;
-  //Tree_Node * ptr;
+
 
   NULLPO_RETRE(prefixTree,NULL,"Error: Empty Tree");
   it = prefixTree->root;
   TREE_PARSE(it,parent,address,{});
 
   if(!it->left && !it->right){
-    //this node has no children, it can be FREE
+   
     if(parent->left == it) parent->left = NULL;
     else parent->right = NULL;
     free(it);
   }
+
   else{
-      //this node has some children, it needs to be here for them
+
       it->nextHop = 0;
   }
   return prefixTree;
@@ -267,48 +297,68 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
 
 
 void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
-  static Tree_Node * parent = NULL;
-  Tree_Node * mParent = parent;
-
 
   NULLPO_RETV(ptr);
   NULLPO_RETV(new_ptr);
 
-  if(ptr->nextHop > 0) new_ptr->nextHop =ptr->nextHop;
+  if(ptr->nextHop != 0) new_ptr->nextHop =ptr->nextHop;
 
   if(ptr->left){
-    CREATE(new_ptr->c[0],1);
-    CREATE(new_ptr->c[1],1);
-    new_ptr->c[0]->nextHop = new_ptr->c[1]->nextHop = ptr->left->nextHop;
-
     if(ptr->left->left){
+      CREATE(new_ptr->c[0],1);
+      new_ptr->c[0]->nextHop =ptr->left->nextHop;
       BinaryToTwoBit_sub(ptr->left->left,new_ptr->c[0]);
     }
+    else if(ptr->left->nextHop != 0){
+      CREATE(new_ptr->c[0],1);
+      new_ptr->c[0]->nextHop = ptr->left->nextHop;
+#ifdef DEBUG      
+      PRINT_NODE_2BIT(new_ptr->c[0]);
+#endif
+    }
+
     if(ptr->left->right){
+      CREATE(new_ptr->c[1],1);
+      new_ptr->c[1]->nextHop = ptr->left->nextHop;
       BinaryToTwoBit_sub(ptr->left->right,new_ptr->c[1]);
-    }   
+    }
+    else if(ptr->left->nextHop != 0){
+      CREATE(new_ptr->c[1],1);
+      new_ptr->c[1]->nextHop = ptr->left->nextHop;
+#ifdef DEBUG      
+      PRINT_NODE_2BIT(new_ptr->c[1]);
+#endif      
+    }
   }
   if(ptr->right){
-    CREATE(new_ptr->c[2],1);
-    CREATE(new_ptr->c[3],1);
-    new_ptr->c[2]->nextHop = new_ptr->c[3]->nextHop = ptr->right->nextHop;
-
     if(ptr->right->left){
+      CREATE(new_ptr->c[2],1);
+      new_ptr->c[2]->nextHop =   ptr->right->nextHop;
       BinaryToTwoBit_sub(ptr->right->left,new_ptr->c[2]);
     }
+    else if(ptr->right->nextHop != 0){
+      CREATE(new_ptr->c[2],1);
+      new_ptr->c[2]->nextHop = ptr->right->nextHop;
+#ifdef DEBUG      
+      PRINT_NODE_2BIT(new_ptr->c[2]);
+#endif            
+    }
+
     if(ptr->right->right){
+      CREATE(new_ptr->c[3],1);
+      new_ptr->c[3]->nextHop = ptr->right->nextHop;
       BinaryToTwoBit_sub(ptr->right->right,new_ptr->c[3]);
     }   
+    else if(ptr->right->nextHop != 0){
+      CREATE(new_ptr->c[3],1);
+      new_ptr->c[3]->nextHop = ptr->right->nextHop;
+#ifdef DEBUG      
+      PRINT_NODE_2BIT(new_ptr->c[3]);
+#endif
+    }
   }
 #ifdef DEBUG
-  printf("NODE %d - ",new_ptr->nextHop);
-  printf("Childs: 00 : %d, 01: %d , 10: %d, 11 : %d\n",
-   new_ptr->c[0] ? new_ptr->c[0]->nextHop : -2,
-   new_ptr->c[1] ? new_ptr->c[1]->nextHop : -2,
-   new_ptr->c[2] ? new_ptr->c[2]->nextHop : -2,
-   new_ptr->c[3] ? new_ptr->c[3]->nextHop : -2);
-  printf("--------------------------\n");
-  return;
+      PRINT_NODE_2BIT(new_ptr);
 #endif
 }
 
@@ -334,4 +384,98 @@ Tree * BinaryToTwoBit(Tree * binaryTree){
   retval->root = newRoot;
   retval->type = TWOBIT;
   return retval;
+}
+
+void PrintTableEven_sub(TwoBitTree_Node * t){
+  static char prefix[17];
+  static int freePos = 0;
+  int pos;
+
+  pos = freePos;
+  
+  NULLPO_RETV(t);
+  ASSERT_RETV(freePos > 15);
+
+  if(t->nextHop > 0){
+    char auxStr[MAX_TREE_HEIGHT +1];
+
+    memset(auxStr,'\0',MAX_TREE_HEIGHT);
+    memcpy(auxStr,prefix, freePos * sizeof(char)) ;
+    printf("Hop: %d\t",t->nextHop);
+    PRINT_STR(auxStr);
+  }
+
+  if(t->c[0]){
+    prefix[freePos++] = '0';
+    prefix[freePos++] = '0';
+    PrintTableEven_sub(t->c[0]);
+  }
+  freePos = pos;
+
+  if(t->c[1]){
+    prefix[freePos++] = '0';
+    prefix[freePos++] = '1';
+    PrintTableEven_sub(t->c[1]);
+  }
+  freePos = pos;
+
+  if(t->c[2]){
+    prefix[freePos++] = '1';
+    prefix[freePos++] = '0';
+    PrintTableEven_sub(t->c[2]);
+  }
+  freePos = pos;
+
+  if(t->c[3]){
+    prefix[freePos++] = '1';
+    prefix[freePos++] = '1';
+    PrintTableEven_sub(t->c[3]);
+  }
+  freePos = pos;
+
+  return;
+}
+
+void PrintTableEven( Tree * twoBitTree){
+  NULLPO_RETVE(twoBitTree,"Error: Tree is empty!");
+  ASSERT_RETVE(twoBitTree->type != TWOBIT,"Error: Tree is not Two-bit type.");
+
+  PrintTableEven_sub(twoBitTree->root);
+  return;
+}
+
+void BinaryTreeDestroy_sub(Tree_Node * t){
+  NULLPO_RETV(t);
+  if(t->left){
+    BinaryTreeDestroy_sub(t->left);
+  }
+  if(t->right){
+    BinaryTreeDestroy_sub(t->right);
+  }
+  free(t);
+}
+
+void TwoBitTreeDestroy_sub(TwoBitTree_Node * t){
+  NULLPO_RETV(t);
+  foreach(arraylength(t->c),{ TwoBitTreeDestroy_sub(t->c[iterator]);});
+  free(t);
+}
+
+void Tree_Destroy(Tree * t){
+  NULLPO_RETV(t);
+  switch(t->type){
+
+    case BINARY:
+      BinaryTreeDestroy_sub(t->root);
+      break;
+
+    case TWOBIT:
+      TwoBitTreeDestroy_sub(t->root);
+      break;
+
+    default:
+      break;
+  }
+  free(t);
+  return;
 }

@@ -7,7 +7,7 @@
             "name": "Launch Program",
             "target": "./prefixer",
             "cwd": "${workspaceRoot}",
-            "arguments": "k"
+            "arguments": "example2.txt"
         }
     ],
     "compounds": []
