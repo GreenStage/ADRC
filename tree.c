@@ -441,7 +441,10 @@ void PrintTableEven_sub(TwoBitTree_Node * t){
     memset(auxStr,'\0',MAX_TREE_HEIGHT);
     memcpy(auxStr,prefix, freePos * sizeof(char)) ;
     printf("Hop: %d\t",t->nextHop);
-    PRINT_STR(auxStr);
+
+    if(freePos == 0){
+      PRINT_STR("OTHERS");
+    } else PRINT_STR(auxStr);
   }
 
   if(t->c[0]){
