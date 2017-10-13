@@ -29,7 +29,7 @@ struct TwoBitTree_Node_
 };
 
 /*
- * Structure that stores que root of a tree
+ * Structure that stores que root of a tree and it's type.
  * */
 struct Tree_{
   void * root;
@@ -42,6 +42,9 @@ typedef enum Tree_Parse_State_{
   EMPTY_RIGHT,
 } Tree_Parse_State;
 
+/* Macro to print the information stored on each node on a two-bit tree.
+ * Used for debugging
+ */
 #define PRINT_NODE_2BIT(N) \
 do{ \
   printf("NODE %d - ",N->nextHop); \
@@ -53,6 +56,7 @@ do{ \
   printf("--------------------------\n"); \
 }while(0)
 
+/*Macro to search through the tree*/
 #define TREE_PARSE(A,P,B,O){ \
   int i; \
   Tree_Parse_State state; \
@@ -80,7 +84,7 @@ do{ \
 }
 
 
-/*isto é só um header aqui perdido no meio ?*/
+/*function headers*/
 Tree *  PrefixTree(char * file_name);
 Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int hopNumber);
 void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr);
@@ -89,12 +93,12 @@ void PrintTable_sub(Tree_Node * t);
 void BinaryTreeDestroy_sub(Tree_Node * t);
 void TwoBitTreeDestroy_sub(TwoBitTree_Node * t);
 
-
-
-/*
- * Recursive function used to visit each node and print the ones who have 
- * a next hop known to the router.
- * */
+/**************************************************************************** 
+* NAME:        PrintTable_sub                                     
+* DESCRIPTION: Recursive subroutine used to print each node
+* ARGUMENTS:   node to print 
+* RETURNS:     void
+***************************************************************************/
 void PrintTable_sub(Tree_Node * t){
   static char prefix[17];
   static int freePos = 0;
@@ -136,8 +140,8 @@ void PrintTable_sub(Tree_Node * t){
 
 /**************************************************************************** 
 * NAME:        PrintTable                                     
-* DESCRIPTION: Calls Printable_sub in order to print da table recursivly. 
-* ARGUMENTS:   args 
+* DESCRIPTION: Calls Printable_sub in order to print the table recursively. 
+* ARGUMENTS:   binary prefix tree 
 * RETURNS:     void
 ***************************************************************************/ 
 void PrintTable(Tree * prefixTree){
@@ -145,9 +149,12 @@ void PrintTable(Tree * prefixTree){
   PrintTable_sub(prefixTree->root);
 }
 
-/*
- * Initialization of the tree
- * */
+/**************************************************************************** 
+* NAME:        tree_init                                     
+* DESCRIPTION: creates a new tree
+* ARGUMENTS:   type of the tree (binary or Two-bit) 
+* RETURNS:     nelwy created tree
+***************************************************************************/
 Tree * tree_init(Tree_Type type){
 
   Tree * new;
@@ -160,10 +167,13 @@ Tree * tree_init(Tree_Type type){
   return new;
 }
 
-/*
- * Function that generates a prefix tree based on a table read from a 
- * text file.
- * */
+
+/**************************************************************************** 
+* NAME:        PrefixTree                                     
+* DESCRIPTION: generates a prefix tree based on a table read from a text file
+* ARGUMENTS:   name of the file with the prefix table 
+* RETURNS:     a binary tree with prefixes and next-hops in each node
+***************************************************************************/
 Tree * PrefixTree(char * file_name){
 
   char line[100];
@@ -201,9 +211,13 @@ Tree * PrefixTree(char * file_name){
   fclose(fp);
   return prefixTree;
 }
-/*
- * Function that returns the next-hop for a given address
- * */
+
+/**************************************************************************** 
+* NAME:        LookUp                                     
+* DESCRIPTION: Given a prefix, finds it's the next-hop
+* ARGUMENTS:   the prefix tree and and prefix we want to find 
+* RETURNS:     the next hop for the given prefix
+***************************************************************************/
 int LookUp(Tree * prefixTree, char * address){
  
   Tree_Node * parent;
@@ -217,10 +231,12 @@ int LookUp(Tree * prefixTree, char * address){
   return ptr->nextHop;
 }
 
-/*
- * Function used to insert a prefix and the associated next-hop
- * in a prefix tree
- * */
+/**************************************************************************** 
+* NAME:        InsertPrefix                                     
+* DESCRIPTION: inserts a prefix and the associated next-hop in a prefix tree
+* ARGUMENTS:   the prefix tree and the prefix and next-hop to insert   
+* RETURNS:     the updated prefix tree
+***************************************************************************/
 Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   
   Tree_Node * newNode = NULL, *parent;
@@ -251,9 +267,12 @@ Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
 
 }
 
-/*
- * Function that generates a new node for a given prefix tree
- * */
+/**************************************************************************** 
+* NAME:        createNewNode                                     
+* DESCRIPTION: creates a new node for a binary tree
+* ARGUMENTS:   pointer to the left and right childs and the next hop for this node 
+* RETURNS:     the newly created node
+***************************************************************************/
 Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHop){
   
   Tree_Node * newNode;
@@ -271,6 +290,12 @@ Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHo
 }
 
 
+/**************************************************************************** 
+* NAME:        DeletePrefix                                     
+* DESCRIPTION: given a prefix, deletes it from the prefix tree
+* ARGUMENTS:   the prefix tree and the prefix to be removed 
+* RETURNS:     the updated prefix tree
+***************************************************************************/
 Tree * DeletePrefix(Tree * prefixTree, char * address){
 
   static Tree_Node * it = NULL;
@@ -295,7 +320,12 @@ Tree * DeletePrefix(Tree * prefixTree, char * address){
   return prefixTree;
 }  
 
-
+/**************************************************************************** 
+* NAME:        BinaryToTwoBit_sub                                     
+* DESCRIPTION: recursive subroutine used to convert a binary tree into a Two-bit tree
+* ARGUMENTS:   the node from the binary and the one from the two-bit tree 
+* RETURNS:     void
+***************************************************************************/
 void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
 
   NULLPO_RETV(ptr);
@@ -312,9 +342,9 @@ void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
     else if(ptr->left->nextHop != 0){
       CREATE(new_ptr->c[0],1);
       new_ptr->c[0]->nextHop = ptr->left->nextHop;
-#ifdef DEBUG      
-      PRINT_NODE_2BIT(new_ptr->c[0]);
-#endif
+  #ifdef DEBUG      
+        PRINT_NODE_2BIT(new_ptr->c[0]);
+  #endif
     }
 
     if(ptr->left->right){
@@ -325,9 +355,9 @@ void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
     else if(ptr->left->nextHop != 0){
       CREATE(new_ptr->c[1],1);
       new_ptr->c[1]->nextHop = ptr->left->nextHop;
-#ifdef DEBUG      
-      PRINT_NODE_2BIT(new_ptr->c[1]);
-#endif      
+  #ifdef DEBUG      
+        PRINT_NODE_2BIT(new_ptr->c[1]);
+  #endif      
     }
   }
   if(ptr->right){
@@ -339,9 +369,9 @@ void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
     else if(ptr->right->nextHop != 0){
       CREATE(new_ptr->c[2],1);
       new_ptr->c[2]->nextHop = ptr->right->nextHop;
-#ifdef DEBUG      
-      PRINT_NODE_2BIT(new_ptr->c[2]);
-#endif            
+  #ifdef DEBUG      
+        PRINT_NODE_2BIT(new_ptr->c[2]);
+  #endif            
     }
 
     if(ptr->right->right){
@@ -352,19 +382,22 @@ void BinaryToTwoBit_sub(Tree_Node* ptr, TwoBitTree_Node  * new_ptr){
     else if(ptr->right->nextHop != 0){
       CREATE(new_ptr->c[3],1);
       new_ptr->c[3]->nextHop = ptr->right->nextHop;
-#ifdef DEBUG      
-      PRINT_NODE_2BIT(new_ptr->c[3]);
-#endif
+  #ifdef DEBUG      
+        PRINT_NODE_2BIT(new_ptr->c[3]);
+  #endif
     }
   }
-#ifdef DEBUG
-      PRINT_NODE_2BIT(new_ptr);
-#endif
+  #ifdef DEBUG
+        PRINT_NODE_2BIT(new_ptr);
+  #endif
 }
 
-/*
- * Function used to convert a binary tree into a two bit prefix tree
- * */
+/**************************************************************************** 
+* NAME:        BinaryToTwoBit                                     
+* DESCRIPTION: calls a subroutine that will recursively convert a binary tree into a two-bit tree
+* ARGUMENTS:   the binary tree to be converted 
+* RETURNS:     the newly created two-bit tree
+***************************************************************************/
 Tree * BinaryToTwoBit(Tree * binaryTree){
   Tree_Node * ptr;
   TwoBitTree_Node * newRoot;
@@ -386,6 +419,12 @@ Tree * BinaryToTwoBit(Tree * binaryTree){
   return retval;
 }
 
+/**************************************************************************** 
+* NAME:        PrintTableEven_sub                                    
+* DESCRIPTION: recursively visits each node to print its information
+* ARGUMENTS:   the node to print 
+* RETURNS:     void
+***************************************************************************/
 void PrintTableEven_sub(TwoBitTree_Node * t){
   static char prefix[17];
   static int freePos = 0;
@@ -436,6 +475,12 @@ void PrintTableEven_sub(TwoBitTree_Node * t){
   return;
 }
 
+/**************************************************************************** 
+* NAME:        PrintTableEven                                   
+* DESCRIPTION: Calls PrintableEven_sub in order to print the table recursively. 
+* ARGUMENTS:   args 
+* RETURNS:     void
+***************************************************************************/
 void PrintTableEven( Tree * twoBitTree){
   NULLPO_RETVE(twoBitTree,"Error: Tree is empty!");
   ASSERT_RETVE(twoBitTree->type != TWOBIT,"Error: Tree is not Two-bit type.");
@@ -444,6 +489,12 @@ void PrintTableEven( Tree * twoBitTree){
   return;
 }
 
+/**************************************************************************** 
+* NAME:        BinaryTreeDestroy_sub                                     
+* DESCRIPTION: frees the allocated memory for the binary tree
+* ARGUMENTS:   the node to be removed 
+* RETURNS:     void
+***************************************************************************/
 void BinaryTreeDestroy_sub(Tree_Node * t){
   NULLPO_RETV(t);
   if(t->left){
@@ -455,12 +506,24 @@ void BinaryTreeDestroy_sub(Tree_Node * t){
   free(t);
 }
 
+/**************************************************************************** 
+* NAME:        TwoBitTreeDestroy_sub                                     
+* DESCRIPTION: frees the allocated memory for the Two-bit tree
+* ARGUMENTS:   the node to be removed 
+* RETURNS:     void
+***************************************************************************/
 void TwoBitTreeDestroy_sub(TwoBitTree_Node * t){
   NULLPO_RETV(t);
   foreach(arraylength(t->c),{ TwoBitTreeDestroy_sub(t->c[iterator]);});
   free(t);
 }
 
+/**************************************************************************** 
+* NAME:        Tree_Destroy                                     
+* DESCRIPTION: calls recursive functions that will free the allocated memory
+* ARGUMENTS:   the tree to be deleted 
+* RETURNS:     void
+***************************************************************************/
 void Tree_Destroy(Tree * t){
   NULLPO_RETV(t);
   switch(t->type){
