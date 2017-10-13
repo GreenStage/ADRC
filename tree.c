@@ -150,6 +150,79 @@ void PrintTable(Tree * prefixTree){
 }
 
 /**************************************************************************** 
+* NAME:        PrintTableEven_sub                                    
+* DESCRIPTION: recursively visits each node to print its information
+* ARGUMENTS:   the node to print 
+* RETURNS:     void
+***************************************************************************/
+void PrintTableEven_sub(TwoBitTree_Node * t){
+  static char prefix[17];
+  static int freePos = 0;
+  int pos;
+
+  pos = freePos;
+  
+  NULLPO_RETV(t);
+  ASSERT_RETV(freePos > 15);
+
+  if(t->nextHop > 0){
+    char auxStr[MAX_TREE_HEIGHT +1];
+
+    memset(auxStr,'\0',MAX_TREE_HEIGHT);
+    memcpy(auxStr,prefix, freePos * sizeof(char)) ;
+    printf("Hop: %d\t",t->nextHop);
+
+    if(freePos == 0){
+      PRINT_STR("OTHERS");
+    } else PRINT_STR(auxStr);
+  }
+
+  if(t->c[0]){
+    prefix[freePos++] = '0';
+    prefix[freePos++] = '0';
+    PrintTableEven_sub(t->c[0]);
+  }
+  freePos = pos;
+
+  if(t->c[1]){
+    prefix[freePos++] = '0';
+    prefix[freePos++] = '1';
+    PrintTableEven_sub(t->c[1]);
+  }
+  freePos = pos;
+
+  if(t->c[2]){
+    prefix[freePos++] = '1';
+    prefix[freePos++] = '0';
+    PrintTableEven_sub(t->c[2]);
+  }
+  freePos = pos;
+
+  if(t->c[3]){
+    prefix[freePos++] = '1';
+    prefix[freePos++] = '1';
+    PrintTableEven_sub(t->c[3]);
+  }
+  freePos = pos;
+
+  return;
+}
+
+/**************************************************************************** 
+* NAME:        PrintTableEven                                   
+* DESCRIPTION: Calls PrintableEven_sub in order to print the table recursively. 
+* ARGUMENTS:   args 
+* RETURNS:     void
+***************************************************************************/
+void PrintTableEven( Tree * twoBitTree){
+  NULLPO_RETVE(twoBitTree,"Error: Tree is empty!");
+  ASSERT_RETVE(twoBitTree->type != TWOBIT,"Error: Tree is not Two-bit type.");
+
+  PrintTableEven_sub(twoBitTree->root);
+  return;
+}
+
+/**************************************************************************** 
 * NAME:        tree_init                                     
 * DESCRIPTION: creates a new tree
 * ARGUMENTS:   type of the tree (binary or Two-bit) 
@@ -167,6 +240,27 @@ Tree * tree_init(Tree_Type type){
   return new;
 }
 
+/**************************************************************************** 
+* NAME:        createNewNode                                     
+* DESCRIPTION: creates a new node for a binary tree
+* ARGUMENTS:   pointer to the left and right childs and the next hop for this node 
+* RETURNS:     the newly created node
+***************************************************************************/
+Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHop){
+  
+  Tree_Node * newNode;
+  
+  CREATE(newNode,1);
+  NULLPO_RETRE(newNode,NULL,"Error allocating memory for your new node.");
+
+
+  newNode->left = new_left;
+  newNode->right = new_right;
+  newNode->nextHop = nextHop;
+  
+  return newNode;
+
+}
 
 /**************************************************************************** 
 * NAME:        PrefixTree                                     
@@ -266,29 +360,6 @@ Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   return prefixTree;
 
 }
-
-/**************************************************************************** 
-* NAME:        createNewNode                                     
-* DESCRIPTION: creates a new node for a binary tree
-* ARGUMENTS:   pointer to the left and right childs and the next hop for this node 
-* RETURNS:     the newly created node
-***************************************************************************/
-Tree_Node * createNewNode(Tree_Node * new_left,Tree_Node * new_right, int nextHop){
-  
-  Tree_Node * newNode;
-  
-  CREATE(newNode,1);
-  NULLPO_RETRE(newNode,NULL,"Error allocating memory for your new node.");
-
-
-  newNode->left = new_left;
-  newNode->right = new_right;
-  newNode->nextHop = nextHop;
-  
-  return newNode;
-
-}
-
 
 /**************************************************************************** 
 * NAME:        DeletePrefix                                     
@@ -417,79 +488,6 @@ Tree * BinaryToTwoBit(Tree * binaryTree){
   retval->root = newRoot;
   retval->type = TWOBIT;
   return retval;
-}
-
-/**************************************************************************** 
-* NAME:        PrintTableEven_sub                                    
-* DESCRIPTION: recursively visits each node to print its information
-* ARGUMENTS:   the node to print 
-* RETURNS:     void
-***************************************************************************/
-void PrintTableEven_sub(TwoBitTree_Node * t){
-  static char prefix[17];
-  static int freePos = 0;
-  int pos;
-
-  pos = freePos;
-  
-  NULLPO_RETV(t);
-  ASSERT_RETV(freePos > 15);
-
-  if(t->nextHop > 0){
-    char auxStr[MAX_TREE_HEIGHT +1];
-
-    memset(auxStr,'\0',MAX_TREE_HEIGHT);
-    memcpy(auxStr,prefix, freePos * sizeof(char)) ;
-    printf("Hop: %d\t",t->nextHop);
-
-    if(freePos == 0){
-      PRINT_STR("OTHERS");
-    } else PRINT_STR(auxStr);
-  }
-
-  if(t->c[0]){
-    prefix[freePos++] = '0';
-    prefix[freePos++] = '0';
-    PrintTableEven_sub(t->c[0]);
-  }
-  freePos = pos;
-
-  if(t->c[1]){
-    prefix[freePos++] = '0';
-    prefix[freePos++] = '1';
-    PrintTableEven_sub(t->c[1]);
-  }
-  freePos = pos;
-
-  if(t->c[2]){
-    prefix[freePos++] = '1';
-    prefix[freePos++] = '0';
-    PrintTableEven_sub(t->c[2]);
-  }
-  freePos = pos;
-
-  if(t->c[3]){
-    prefix[freePos++] = '1';
-    prefix[freePos++] = '1';
-    PrintTableEven_sub(t->c[3]);
-  }
-  freePos = pos;
-
-  return;
-}
-
-/**************************************************************************** 
-* NAME:        PrintTableEven                                   
-* DESCRIPTION: Calls PrintableEven_sub in order to print the table recursively. 
-* ARGUMENTS:   args 
-* RETURNS:     void
-***************************************************************************/
-void PrintTableEven( Tree * twoBitTree){
-  NULLPO_RETVE(twoBitTree,"Error: Tree is empty!");
-  ASSERT_RETVE(twoBitTree->type != TWOBIT,"Error: Tree is not Two-bit type.");
-
-  PrintTableEven_sub(twoBitTree->root);
-  return;
 }
 
 /**************************************************************************** 
