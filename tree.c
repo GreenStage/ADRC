@@ -26,7 +26,7 @@ struct TwoBitTree_Node_
  * Structure that stores que root of a tree
  * */
 struct Tree_{
-  void * root;
+  Tree_Node * root;
   Tree_Type type;
 };
 
@@ -61,7 +61,7 @@ void PrintTable_sub(Tree_Node * t){
     char auxStr[MAX_TREE_HEIGHT +1];
 
     memset(auxStr,'\0',MAX_TREE_HEIGHT);
-    memcpy(auxStr,prefix, (freePos+1) * sizeof(char)) ;
+    memcpy(auxStr,prefix, freePos * sizeof(char)) ;
     printf("Hop: %d\t",t->nextHop);
     printStr(auxStr);
   }
@@ -133,7 +133,7 @@ void PrefixTree(Tree * prefixTree, char * file_name){
       #endif
       sscanf(line, "%s %d", prefix, &nextHop);
 
-      InsertPrefix(prefixTree->root , prefix, nextHop);
+      InsertPrefix(prefixTree, prefix, nextHop);
 
     }
       fclose(fp);
@@ -149,42 +149,15 @@ void PrefixTree(Tree * prefixTree, char * file_name){
  * Function that returns the next-hop for a given address
  * */
 int LookUp(Tree * prefixTree, char * address){
-  static int i = 0;
-  int retval;
-  static Tree_Node * it = NULL;
-  Tree_Node * ptr;
+  //static int i = 0;
+  int retval = 9823;
+  Tree_Node * ptr = prefixTree->root;
 
-  ASSERT_RETR(i > (int) strlen(address) - 1, -1);
+  TREE_PARSE(ptr,address,{
+    return lastHop->nextHop;
+  });
 
-  if(it == NULL){
-    it = prefixTree->root;
-  } 
-
-  ptr = it;
- 
-  switch(address[i]){
-    case '0':
-      if(!it->left){
-        return it->nextHop;
-      }
-      it= it->left;
-      break;
-    case '1':
-      if(!it->right){
-        return it->nextHop;
-      }
-      it= it->right;
-      break;
-    default:
-      return -1;
-
-  }
-  i++;
-  retval = LookUp(prefixTree,address++);
-  i--;
-
-  return retval == 0 ? ptr->nextHop : retval;
-
+  return ptr->nextHop;
 }
 
 /*
@@ -194,12 +167,18 @@ int LookUp(Tree * prefixTree, char * address){
 Tree * InsertPrefix(Tree * prefixTree, char * prefix, int nextHop ){
   
   Tree_Node * newNode = NULL;
+
   Tree_Node * ptr = prefixTree->root;
+ 
 
   NULLPO_RETR(prefixTree,NULL);
   TREE_PARSE(ptr,prefix,{ 
     newNode = createNewNode(NULL, NULL, EMPTY_HOP);
-    ptr->left = newNode;
+
+    if(state == RIGHT)
+      ptr->right = newNode;
+    else ptr->left = newNode;
+
     ptr = newNode;
   });
 
@@ -248,6 +227,33 @@ TwoBitTree_Node *  BinaryToTwoBit_sub(Tree_Node* ptr){
 
   return new_ptr;
 }
+
+Tree * DeletePrefix(Tree * prefixTree, char * address){
+
+  //int retval;
+  static Tree_Node * it = NULL;
+  Tree_Node * aux = NULL;
+  //Tree_Node * ptr;
+
+  NULLPO_RETRE(prefixTree,NULL,"Error: Empty Tree");
+
+  TREE_PARSE(it,address,{ 
+    if(!it->left && !it->right){
+      //this node has no children, it can be FREE
+      if(aux->left == it) aux->left = NULL;
+      else aux->right = NULL;
+
+      free(it);//CHECK
+    }
+    else{
+        //this node has some children, it needs to be here for them
+        it->nextHop = 0;
+    }
+  });
+
+  return prefixTree;
+}  
+
 
 /*
  * Function used to convert a binary tree into a two bit prefix tree
