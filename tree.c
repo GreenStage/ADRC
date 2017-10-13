@@ -515,7 +515,7 @@ void BinaryTreeDestroy_sub(Tree_Node * t){
 ***************************************************************************/
 void TwoBitTreeDestroy_sub(TwoBitTree_Node * t){
   NULLPO_RETV(t);
-  foreach(arraylength(t->c),{ TwoBitTreeDestroy_sub(t->c[iterator]);});
+  FOREACH(ARRAY_LENGTH(t->c),{ TwoBitTreeDestroy_sub(t->c[iterator]);});
   free(t);
 }
 
