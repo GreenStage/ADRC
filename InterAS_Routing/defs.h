@@ -1,8 +1,9 @@
+
 #ifndef DEFINES_HEADER
 #define DEFINES_HEADER
 
-/*****Debug mode switch****/
-/*#define DEBUG*/
+#include <stdio.h>
+#include <stdlib.h>
 
 /******************************************************
  ********************* Values**************************
@@ -32,8 +33,8 @@
  ***************** Array macros  **********************
  *****************************************************/
 
-/*Retrieves an array length*/
-#define ARRAY_LENGTH(t) ( sizeof(t) / sizeof(t[0]) )
+/*Retrieves a const array length*/
+#define ARRAY_LENGTH(t) ( (int) sizeof(t) / (int) sizeof(t[0]) )
 
 /*Iterates and calls O for each iteration*/
 #define FOREACH(NUM_IT,O) { \
@@ -56,19 +57,21 @@
     do { if(t) return v; } while(0)
 
 /*Returns void and prints a message if the condition t is verified*/    
-#define ASSERT_RETVE(t,v) \
+#define ASSERT_RETVE(t,...) \
     do {  \
         if (t) { \
-            printf("%s\n", (char * ) v); \
+            printf(__VA_ARGS__); \
+            printf("\n"); \
             return; \
         } \
     } while(0)
 
 /*Returns variable r and prints a message if the condition t is verified*/    
-#define ASSERT_RETRE(t,r,m) \
+#define ASSERT_RETRE(t,r,...) \
 do {  \
     if (t) { \
-        printf("%s\n", (char * ) m); \
+        printf(__VA_ARGS__); \
+        printf("\n"); \
         return r; \
     } \
 } while(0)
@@ -76,12 +79,8 @@ do {  \
 /*Extended macros to ensure that a variable is not null*/
 #define NULLPO_RETV(t) ASSERT_RETV(t == NULL)
 #define NULLPO_RETR(t,r) ASSERT_RETR(t == NULL,r)
-#define NULLPO_RETVE(t,v) ASSERT_RETVE(t == NULL,v)
-#define NULLPO_RETRE(t,r,m) ASSERT_RETRE(t == NULL,r,m)
-
-
-
-
+#define NULLPO_RETVE(t,...) ASSERT_RETVE(t == NULL,__VA_ARGS__)
+#define NULLPO_RETRE(t,r,...) ASSERT_RETRE(t == NULL,r,__VA_ARGS__)
 
 /******************************************************
  ***************** Memory macros  *********************
@@ -99,5 +98,5 @@ do{ \
     } \
 } while(0)
 
-
+typedef enum bool_{ true, false} bool;
 #endif

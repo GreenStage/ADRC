@@ -1,20 +1,24 @@
 #makefile
-FLAGS = 
-DEFINES = 
-all: prefixer
+CFLAGS = 
 
-debug: FLAGS =  -g
-debug: prefixer
+all: as_router
 
-prefixer: main.o tree.o
-	gcc -o prefixer main.o tree.o
+debug: CFLAGS =  -g
+debug: CFLAGS += -DDEBUG
+debug: as_router
 
-main.o: core.c defs.h tree.h
-	gcc -o main.o -c core.c $(FLAGS) -W -Wall -ansi
+as_router: main.o network.o list.o
+	gcc -o as_router main.o network.o list.o
 
-tree.o: tree.c tree.h defs.h
-	gcc -o tree.o -c tree.c $(FLAGS) -W -Wall -ansi
+main.o: core.c defs.h network.h
+	gcc -o main.o -c core.c $(CFLAGS) -W -Wall -ansi
+
+network.o: network.c network.h defs.h list.h
+	gcc -o network.o -c network.c $(CFLAGS) -W -Wall -ansi
+
+list.o: list.c defs.h list.h
+	gcc -o list.o -c list.c $(CFLAGS) -W -Wall -ansi
 
 clean:
 	rm -rf *.o;\
-	rm -rf prefixer
+	rm -rf as_router
