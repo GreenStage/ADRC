@@ -12,4 +12,5 @@ void network_check_commercial(graph * network);
 void network_find_paths_to(graph * network, int destination);
 void network_print(graph * network,FILE * fp);
 void network_destroy(graph * network);
+void network_create_log(graph * network, char * filename);
 #endif

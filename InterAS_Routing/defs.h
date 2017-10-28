@@ -98,5 +98,5 @@ do{ \
     } \
 } while(0)
 
-typedef enum bool_{ true, false} bool;
+typedef enum bool_{ false, true} bool;
 #endif

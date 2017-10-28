@@ -10,7 +10,7 @@ enum link_type {
     PEER,
 };
 enum route_type{
-    R_NONE,
+    R_NONE = 0,
     R_PROVIDER,
     R_PEER,
     R_COSTUMER,
@@ -27,18 +27,13 @@ typedef struct route_{
     int nHops; 
 }route;
 
-typedef struct link_{
-    int peer;
-    enum link_type type;
-}link;
-
 struct graph_{
     /*Adjacency list instance, representing the graph */
     node * * nodes;
 
     /*Array of routes to a destination*/
     route * dest_route;
-
+    int dest;
     
     bool * onStack;
 
@@ -63,7 +58,7 @@ graph * network_create_from_file(FILE * fp){
     char line[100];
     int i,head, tail , type;
 
-    link * appendNode;
+    int * appendNode;
 
     NULLPO_RETRE(fp,NULL,"File is null.");
 
@@ -86,10 +81,12 @@ graph * network_create_from_file(FILE * fp){
             continue;
         }
 
-        if(tail < 0  || head < 0|| tail >= NETWORK_SIZE || head >= NETWORK_SIZE){
-            printf("Invalid node provided at line %d, skipping...",i);
+        if(tail < 0  || type < 0 ||  type > 3 ||  head < 0|| tail >= NETWORK_SIZE || head >= NETWORK_SIZE){
+            printf("Invalid link provided at line %d, skipping...",i);
             continue;
         }
+
+        type--;
 
         CREATE(appendNode,1);
         if(appendNode == NULL){
@@ -97,8 +94,7 @@ graph * network_create_from_file(FILE * fp){
             continue;
         }
 
-        appendNode->peer = tail;
-        appendNode->type = type;
+        *appendNode = tail;
 
         if(network->nodes[head] == NULL){
             CREATE(network->nodes[head],1);
@@ -107,7 +103,7 @@ graph * network_create_from_file(FILE * fp){
             network->nodesCount++;
         }
 
-        network->nodes[head]->links[type -1] = list_append(network->nodes[head]->links[type -1],(void *) appendNode);
+        network->nodes[head]->links[type] = list_append(network->nodes[head]->links[type],(void *) appendNode);
 
         appendNode = NULL;
 
@@ -117,8 +113,9 @@ graph * network_create_from_file(FILE * fp){
             continue;
         }
 
-        appendNode->peer = head;
-        appendNode->type = type == 3 ? type : 3 - type;
+        *appendNode = head;
+
+        type = (type == 2) ? 2 : 1 - type;
 
         if(network->nodes[tail] == NULL){
             CREATE(network->nodes[tail],1);
@@ -127,7 +124,7 @@ graph * network_create_from_file(FILE * fp){
             network->nodesCount++;
         }
 
-        network->nodes[tail]->links[appendNode->type -1] = list_append(network->nodes[tail]->links[appendNode->type -1],(void *) appendNode);
+        network->nodes[tail]->links[type] = list_append(network->nodes[tail]->links[type],(void *) appendNode);
 
         network->edgesCount++;
     }
@@ -155,10 +152,10 @@ void visit(graph * network,int idx){
 /*Returns number of direct and indirect costumers*/
 void network_parse_costumers(graph * network, int index){
     list_node * aux;
-    link * link_data;
+    int peer;
 
     /*Ensure node exists*/
-    NULLPO_RETV( network->nodes[index]);
+    NULLPO_RETV(network->nodes[index]);
 
     /*Ensure it was not visited*/
     ASSERT_RETV(network->nodes[index]->visitQueuePos > network->visitQueuePos);
@@ -168,17 +165,17 @@ void network_parse_costumers(graph * network, int index){
     
     aux = network->nodes[index]->links[COSTUMER];
     LIST_PARSE(aux,{
-        link_data = (link *) list_get_data(aux);
-        if(network->onStack && network->onStack[link_data->peer]){
+        peer =  * ((int *) list_get_data(aux));
+        if(network->onStack && network->onStack[peer]){
             network->revisitAttempts++;
 #ifdef DEBUG
-            printf("REVISIT ARRAY COLISION AT INDEX %d",index);
+            printf("REVISIT ARRAY COLISION AT INDEX %d\n",index);
 #endif
         }
-        else if(network->visitQueue[link_data->peer] <= network->visitQueuePos){
-            if(network->onStack) network->onStack[link_data->peer] = true;
-            network_parse_costumers(network, link_data->peer);
-            if(network->onStack) network->onStack[link_data->peer] = false;
+        else if(network->nodes[peer]->visitQueuePos <= network->visitQueuePos){
+            if(network->onStack) network->onStack[peer] = true;
+            network_parse_costumers(network,peer);
+            if(network->onStack) network->onStack[peer] = false;
         }
 
     });
@@ -198,17 +195,18 @@ void network_ensure_no_costumer_cycle(graph * network){
 
     for(peer = network->visitQueue[0]; network->visitQueuePos > -1 ; peer = network->visitQueue[0]){
 
-        /*Reset visited queue divider*/
+        network->onStack[peer] = true;
         network_parse_costumers(network,peer);
-
+        network->onStack[peer] = false;
+        
         network->costumerCycles += network->revisitAttempts;
         network->revisitAttempts = 0;
     }
 #ifdef DEBUG
     if( network->costumerCycles){
-        printf("DEBUG - network_ensure_no_costumer_cycle: found %d costumer cycles.",network->costumerCycles);
+        printf("DEBUG - network_ensure_no_costumer_cycle: found %d costumer cycles.\n",network->costumerCycles);
     }
-    else  printf("DEBUG - network_ensure_no_costumer_cycle: No costumer cycles found.");
+    else  printf("DEBUG - network_ensure_no_costumer_cycle: No costumer cycles found.\n");
   
 #endif
     network->visitQueuePos = network->nodesCount -1;
@@ -227,7 +225,7 @@ void network_check_commercial(graph * network){
 
      /*Fetch top provider, since it recursivily parses its costumers, decreases necessary iterations*/
     for(peer = network->visitQueue[0]; network->nodes[peer]->links[PROVIDER] != NULL;)   
-        peer =  ( (link *) list_get_data(network->nodes[peer]->links[PROVIDER]) )->peer;
+        peer =  *( (int *) list_get_data(network->nodes[peer]->links[PROVIDER])) ;
 
     /*Fetch all direct and indirect costumers*/
     network_parse_costumers(network,peer);
@@ -235,12 +233,12 @@ void network_check_commercial(graph * network){
     /*Fetch all direct and indirect costumers for each peer*/
     ptr = network->nodes[peer]->links[PEER];
     LIST_PARSE(ptr,{
-        peer =  ( (link *) list_get_data(ptr->links[PEER]) )->peer;
+        peer =  *( (int *) list_get_data(network->nodes[peer]->links[PEER])) ;
         network_parse_costumers(network,peer);
     });
 
 #ifdef DEBUG
-    printf("network_check_commercial: found %d disconnected nodes",network->visitQueuePos + 1);
+    printf("DEBUG - network_check_commercial: found %d disconnected nodes\n",network->visitQueuePos + 1);
 #endif
 
     if(network->visitQueuePos == -1)
@@ -255,18 +253,21 @@ void network_update_dest_route(graph * network, int nodeIndex){
     network->dest_route[nodeIndex].nHops = nHops;
     nHops++;
 
-    if(network->dest_route[nodeIndex].route_type == R_COSTUMER){
+    if(network->dest_route[nodeIndex].route_type >= R_COSTUMER){
 
         /*UPDATE PROVIDERS ROUTES*/
         ptr = network->nodes[nodeIndex]->links[PROVIDER];
         
         LIST_PARSE(ptr,{
-            id = ((link *) list_get_data(ptr))->peer;
+            id = *((int *) list_get_data(ptr));
 
             if( (network->dest_route[id].route_type != R_SELF && network->dest_route[id].route_type != R_COSTUMER) 
              || (network->dest_route[id].route_type == R_COSTUMER && network->dest_route[id].nHops > nHops)){
 
                 network->dest_route[id].route_type = R_COSTUMER;
+#ifdef DEBUG
+                printf("Node %d route updated to Costumer\n",id);
+#endif
                 network->dest_route[id].nHops = nHops;
                 network_update_dest_route(network,id);
             }
@@ -275,12 +276,15 @@ void network_update_dest_route(graph * network, int nodeIndex){
         /*UPDATE PEERS ROUTES*/
         ptr = network->nodes[nodeIndex]->links[PEER];
         LIST_PARSE(ptr,{
-            id = ((link *) list_get_data(ptr))->peer;
+            id = *((int *) list_get_data(ptr));
 
             if(network->dest_route[id].route_type == R_NONE || network->dest_route[id].route_type == R_PROVIDER
             || (network->dest_route[id].route_type == R_PEER && network->dest_route[id].nHops > nHops)){
 
                 network->dest_route[id].route_type = R_PEER;
+#ifdef DEBUG
+                printf("Node %d route updated to Peer\n",id);
+#endif
                 network->dest_route[id].nHops = nHops;
                 network_update_dest_route(network,id);
             }
@@ -292,7 +296,7 @@ void network_update_dest_route(graph * network, int nodeIndex){
         ptr = network->nodes[nodeIndex]->links[COSTUMER];
     
         LIST_PARSE(ptr,{
-            id = ((link *) list_get_data(ptr))->peer;
+            id = *((int *) list_get_data(ptr));
 
             if( network->dest_route[id].route_type == R_NONE 
              || (network->dest_route[id].route_type == R_PROVIDER && network->dest_route[id].nHops > nHops)){
@@ -320,19 +324,21 @@ void network_find_paths_to(graph * network,int destination){
     else{
         memset(network->dest_route,0,NETWORK_SIZE * sizeof(route));
     }
+    network->dest = destination;
 
     if(network->isCommercial){
         /*A network being commercially connected implies that each node, in the worst case scenario,
-        * can connect to all the othes via a provider, by initiliazing all routes to provider setting,
-        * thus letting us skip iterating over all costumers routes later on . (1) */
+        * can connect to all the othes via a provider route, by initiliazing all routes type to "provider",
+        * we can skip iterating over all costumers routes later on . (1) */
         FOREACH(NETWORK_SIZE,network->dest_route[iterator].route_type = R_PROVIDER );
     }
 
     network->dest_route[destination].route_type = R_SELF;
     network_update_dest_route(network,destination);
+    printf("network_find_paths_to: Finishing calculating routes to %d.\n",destination);
 }
 
-void free_link(link * rt){
+void free_link(int * rt){
     free(rt);
 }
 
@@ -360,4 +366,61 @@ void network_destroy(graph * network){
     }
 
     free(network);
+}
+
+void routeType_toString(char * retval,enum route_type routeType){
+    switch(routeType){
+
+        case R_COSTUMER:
+            sprintf(retval,"costumer route");
+            break;
+        case R_NONE:
+            sprintf(retval,"no route");
+            break;
+        case R_PEER:
+            sprintf(retval,"peer route");
+            break;
+        case R_PROVIDER:
+            sprintf(retval,"provider route");
+            break;
+        default:
+            sprintf(retval,"already at destination");
+            break;         
+    }
+}
+void network_create_log(graph * network, char * filename){
+    FILE * fp;
+    char routetype[][50] = {
+        "has no route to destionation",
+        "elects a provider route",
+        "elects a peer route",
+        "elects a costumer route",
+        "is the destination itself"
+    };
+
+    fp = fopen(filename,"w");
+    NULLPO_RETVE(fp,"Cannot open file for writing : %s", filename);
+
+    fprintf(fp,"Network Info:\n");
+    fprintf(fp,"\t%d Node, %d Edges\n",network->nodesCount,network->edgesCount); 
+
+    if(network->costumerCycles){
+        fprintf(fp,"\t%d costumer cycles found.\n",network->costumerCycles);      
+    }  
+    else fprintf(fp,"\tNo costumer cycles found.\n");
+    
+    if(network->isCommercial){
+        fprintf(fp,"\tCommercially connected.\n");      
+    }
+
+    if(network->dest){
+        fprintf(fp,"\n");
+        fprintf(fp,"Route types elected to reach node %d:\n",network->dest);
+        FOREACH(NETWORK_SIZE,{
+            if(network->nodes[iterator] != NULL){
+                fprintf(fp,"\t Node %d %s\n",iterator,routetype[network->dest_route[iterator].route_type]);
+            }
+        });
+    }
+    fclose(fp);
 }
