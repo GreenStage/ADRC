@@ -72,6 +72,9 @@ graph * network_create_from_file(FILE * fp){
     CREATE(network->visitQueue,NETWORK_SIZE);
     NULLPO_RETRE(network->visitQueue,network,"Failed to create network.");
 
+    CREATE(network->onStack,NETWORK_SIZE);
+    NULLPO_RETRE(network->onStack,network,"Failed to create network.");
+
     i = 0;
     while( fgets(line,100,fp) ){
         i++;
@@ -187,8 +190,6 @@ void network_ensure_no_costumer_cycle(graph * network){
     int peer;
 
     NULLPO_RETVE(network,"ERROR: network_ensure_no_costumer cycle: network is null.");
-    
-    CREATE(network->onStack,NETWORK_SIZE);
 
     network->visitQueuePos = network->nodesCount -1;
     network->revisitAttempts = 0;
@@ -213,6 +214,11 @@ void network_ensure_no_costumer_cycle(graph * network){
     return;
 }
 
+/*
+The algorithm implement here is based on the fact that if a provider can reach a node,
+so can its costumers.
+From here we can make "groups" of strongly connected nodes
+*/
 void network_check_commercial(graph * network){
     int peer;
     list_node * ptr = NULL;
@@ -223,19 +229,27 @@ void network_check_commercial(graph * network){
     network->visitQueuePos = network->nodesCount -1;
     network->revisitAttempts = 0;
 
-     /*Fetch top provider, since it recursivily parses its costumers, decreases necessary iterations*/
-    for(peer = network->visitQueue[0]; network->nodes[peer]->links[PROVIDER] != NULL;)   
-        peer =  *( (int *) list_get_data(network->nodes[peer]->links[PROVIDER])) ;
-
-    /*Fetch all direct and indirect costumers*/
+    /*Go up the providers chain*/
+    for(peer = network->visitQueue[0]; network->nodes[peer]->links[PROVIDER] != NULL;  
+      peer =  *( (int *) list_get_data(network->nodes[peer]->links[PROVIDER]))){
+        /*DFS on costumers in order to append them to the visited group*/
+        network_parse_costumers(network,peer);
+    }
     network_parse_costumers(network,peer);
 
-    /*Fetch all direct and indirect costumers for each peer*/
+    /*Now we now that all nodes on the costumer chain under this tier 1 provider are 
+    *strongly connected, we just need to check for peer routes from here*/
+
+    /*Fetch and append all direct and indirect costumers of each peer to the visited group*/
     ptr = network->nodes[peer]->links[PEER];
     LIST_PARSE(ptr,{
         peer =  *( (int *) list_get_data(network->nodes[peer]->links[PEER])) ;
         network_parse_costumers(network,peer);
     });
+
+    /* - If the network is commercially connected, every node was visited by the algorithm*/
+    /* - If there are still nodes to visit, it means that are nodes that the top tier provider cannot reach,
+    * hence the network is not commercially connected*/
 
 #ifdef DEBUG
     printf("DEBUG - network_check_commercial: found %d disconnected nodes\n",network->visitQueuePos + 1);
@@ -243,6 +257,8 @@ void network_check_commercial(graph * network){
 
     if(network->visitQueuePos == -1)
         network->isCommercial = true;
+
+    network->visitQueuePos = network->nodesCount -1;
 }
 
 void network_update_dest_route(graph * network, int nodeIndex){
@@ -354,17 +370,24 @@ void network_destroy(graph * network){
             list_free(network->nodes[iterator]->links[PEER],(void *) free_link);
             
             free(network->nodes[iterator]);
+            network->nodes[iterator] = NULL;
         });
     }
 
     if(network->dest_route){
         free(network->dest_route);
+        network->dest_route = NULL;
     }
 
     if(network->visitQueue){
         free(network->visitQueue);
+        network->visitQueue = NULL;
     }
-
+    
+    if(network->onStack){
+        free(network->onStack);
+        network->onStack = NULL;
+    }
     free(network);
 }
 
@@ -405,12 +428,17 @@ void network_create_log(graph * network, char * filename){
     fprintf(fp,"\t%d Node, %d Edges\n",network->nodesCount,network->edgesCount); 
 
     if(network->costumerCycles){
-        fprintf(fp,"\t%d costumer cycles found.\n",network->costumerCycles);      
+        fprintf(fp,"\t%d costumer cycles found.\n",network->costumerCycles);    
+        fclose(fp);
+        return;  
     }  
     else fprintf(fp,"\tNo costumer cycles found.\n");
     
     if(network->isCommercial){
         fprintf(fp,"\tCommercially connected.\n");      
+    }
+    else{
+        fprintf(fp,"\t Not commercially connected.\n");      
     }
 
     if(network->dest){
