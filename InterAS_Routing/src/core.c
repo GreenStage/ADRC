@@ -51,7 +51,7 @@ int main(int argc, char * argv[]){
                     printf("\tGo back (%d)\n",CALC_NONE);
 
                     fgets(line,MEDIUM_STR_SIZE,stdin);
-                    if(sscanf(line, "%d", &type)){
+                    if(sscanf(line, "%u", &type)){
                         if(type >= CALC_NONE && type <= CALC_ALL) break;
                         printf("Invalid option %d \n", type);
                         printf("Usage:\n");

@@ -1,5 +1,5 @@
 #makefile
-CFLAGS = 
+CFLAGS = -D_BSD_SOURCE
 
 all: as_router
 
