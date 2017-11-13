@@ -3,9 +3,11 @@ CFLAGS = -D_BSD_SOURCE
 
 all: as_router
 
-debug: CFLAGS =  -g
+debug: CFLAGS +=  -g
 debug: CFLAGS += -DDEBUG
-debug: as_router
+
+debug: main.o network.o list.o
+	gcc -o as_router main.o network.o list.o
 
 as_router: main.o network.o list.o
 	gcc -o as_router main.o network.o list.o &&\

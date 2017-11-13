@@ -32,7 +32,7 @@ int main(int argc, char * argv[]){
     network_ensure_no_costumer_cycle(network);
 
     network_check_commercial(network);
-    
+    //TODO PRINT READY
     while(!quit){
 
         fgets(line,MEDIUM_STR_SIZE,stdin);
@@ -86,6 +86,16 @@ int main(int argc, char * argv[]){
         }
         else if(command == 'l'){
             if(sscanf(extra,"%s",log_file_name) > 0){
+                struct tm *time_s;
+                char * p = log_file_name;
+                time_t rawtime = time(NULL);
+                time_s = gmtime(&rawtime);
+                strftime(log_file_name, sizeof(log_file_name), "logs/%Y-%m-%d_%H:%M:%S.txt", time_s);
+                for (; *p; ++p)
+                {
+                    if (*p == ' ')
+                          *p = '_';
+                }
                 network_create_log(network,log_file_name);
             }
         }

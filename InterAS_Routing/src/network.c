@@ -94,7 +94,18 @@ graph * network_create_from_file(FILE * fp){
             continue;
         }
 
-        type--;
+        switch(type){
+            case 1:
+                type = PROVIDER;
+                break;
+            case 2:
+                type = PEER;
+                break;
+            case 3:
+                type = COSTUMER;
+                break;
+        }
+
 
         CREATE(appendNode,1);
         if(appendNode == NULL){
@@ -123,7 +134,16 @@ graph * network_create_from_file(FILE * fp){
 
         *appendNode = head;
 
-        type = (type == 2) ? 2 : 1 - type;
+        switch(type){
+            case PROVIDER:
+                type = COSTUMER;
+                break;
+            case COSTUMER:
+                type = PROVIDER;
+                break;
+            default:
+                break;
+        }
 
         if(network->nodes[tail] == NULL){
             CREATE(network->nodes[tail],1);
@@ -170,9 +190,8 @@ void network_parse_costumers(graph * network, int index){
 
     /*SWITCH*/
     visit(network,index);
-    
-    aux = network->nodes[index]->links[COSTUMER];
-    LIST_PARSE(aux,{
+
+    for(aux = network->nodes[index]->links[COSTUMER]; aux!= NULL; aux = list_next(aux)){
         peer =  * ((int *) list_get_data(aux));
         if(network->onStack && network->onStack[peer]){
             network->revisitAttempts++;
@@ -186,7 +205,7 @@ void network_parse_costumers(graph * network, int index){
             if(network->onStack) network->onStack[peer] = false;
         }
 
-    });
+    };
 
     return;
 }
