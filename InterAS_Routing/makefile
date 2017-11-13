@@ -8,16 +8,17 @@ debug: CFLAGS += -DDEBUG
 debug: as_router
 
 as_router: main.o network.o list.o
-	gcc -o as_router main.o network.o list.o
+	gcc -o as_router main.o network.o list.o &&\
+	rm -f *.o
 
-main.o: core.c defs.h network.h
-	gcc -o main.o -c core.c $(CFLAGS) -W -Wall -ansi
+main.o: src/core.c src/defs.h src/network.h
+	gcc -o main.o -c src/core.c $(CFLAGS) -W -Wall -ansi
 
-network.o: network.c network.h defs.h list.h
-	gcc -o network.o -c network.c $(CFLAGS) -W -Wall -ansi
+network.o: src/network.c src/network.h src/defs.h src/list.h
+	gcc -o network.o -c src/network.c $(CFLAGS) -W -Wall -ansi
 
-list.o: list.c defs.h list.h
-	gcc -o list.o -c list.c $(CFLAGS) -W -Wall -ansi
+list.o: src/list.c src/defs.h src/list.h
+	gcc -o list.o -c src/list.c $(CFLAGS) -W -Wall -ansi
 
 clean:
 	rm -rf *.o;\

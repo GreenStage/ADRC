@@ -9,6 +9,8 @@ enum link_type {
     COSTUMER,
     PEER,
 };
+
+
 enum route_type{
     R_NONE = 0,
     R_PROVIDER,
@@ -16,6 +18,7 @@ enum route_type{
     R_COSTUMER,
     R_SELF
 };
+
 
 typedef struct node_{
     list_node * links[3]; /*PROVIDER,COSTUMER,PEER*/
@@ -25,6 +28,7 @@ typedef struct node_{
 typedef struct route_{
     enum route_type route_type;
     int nHops; 
+    int advertiser;
 }route;
 
 struct graph_{
@@ -50,6 +54,7 @@ struct graph_{
     int revisitAttempts;
     int costumerPaths, peerPaths, providerPaths, costumerCycles;
     int nodesCount, edgesCount;
+    enum calc_type flag;
 
 };
 
@@ -261,7 +266,7 @@ void network_check_commercial(graph * network){
     network->visitQueuePos = network->nodesCount -1;
 }
 
-void network_update_dest_route(graph * network, int nodeIndex){
+void network_update_dest_route(graph * network, int nodeIndex,int flag){
     static int nHops = 0;
     int id;
     list_node * ptr;
@@ -278,14 +283,15 @@ void network_update_dest_route(graph * network, int nodeIndex){
             id = *((int *) list_get_data(ptr));
 
             if( (network->dest_route[id].route_type != R_SELF && network->dest_route[id].route_type != R_COSTUMER) 
-             || (network->dest_route[id].route_type == R_COSTUMER && network->dest_route[id].nHops > nHops)){
+             || (network->dest_route[id].route_type == R_COSTUMER &&  network->dest_route[id].nHops > nHops )){
 
-                network->dest_route[id].route_type = R_COSTUMER;
 #ifdef DEBUG
                 printf("Node %d route updated to Costumer\n",id);
 #endif
-                network->dest_route[id].nHops = nHops;
-                network_update_dest_route(network,id);
+ 
+                network->dest_route[id].route_type = R_COSTUMER;
+                network->dest_route[id].advertiser = nodeIndex;
+                network_update_dest_route(network,id,flag);
             }
         }); 
 
@@ -296,30 +302,36 @@ void network_update_dest_route(graph * network, int nodeIndex){
 
             if(network->dest_route[id].route_type == R_NONE || network->dest_route[id].route_type == R_PROVIDER
             || (network->dest_route[id].route_type == R_PEER && network->dest_route[id].nHops > nHops)){
-
-                network->dest_route[id].route_type = R_PEER;
+  
 #ifdef DEBUG
-                printf("Node %d route updated to Peer\n",id);
+                printf("Node %d route updated to Peer - from %d with %d hops\n",id,nodeIndex,nHops);
 #endif
-                network->dest_route[id].nHops = nHops;
-                network_update_dest_route(network,id);
+                network->dest_route[id].route_type = R_PEER;
+                network->dest_route[id].advertiser = nodeIndex;   
+                network_update_dest_route(network,id,flag);
             }
         });
     }
 
-    if(!network->isCommercial){
+    if(!network->isCommercial || network->flag != CALC_TYPE){
         /*Only needed if the network is not commercially connected , see (1)*/
+        /*Or user choose to calculate number of hops/ advertisers aswell*/
+
         ptr = network->nodes[nodeIndex]->links[COSTUMER];
     
         LIST_PARSE(ptr,{
             id = *((int *) list_get_data(ptr));
 
             if( network->dest_route[id].route_type == R_NONE 
-             || (network->dest_route[id].route_type == R_PROVIDER && network->dest_route[id].nHops > nHops)){
+             || (network->dest_route[id].route_type == R_PROVIDER && network->dest_route[id].nHops > nHops)
+             || (network->dest_route[id].route_type == R_PROVIDER && network->dest_route[id].advertiser == nodeIndex)){
 
-                network->dest_route[id].route_type = R_PROVIDER;                
-                network->dest_route[id].nHops = nHops;
-                network_update_dest_route(network,id);
+#ifdef DEBUG
+                printf("Node %d route updated to Provider - from %d with %d hops\n",id,nodeIndex,nHops);
+#endif
+                network->dest_route[id].route_type = R_PROVIDER; 
+                network->dest_route[id].advertiser = nodeIndex;               
+                network_update_dest_route(network,id,0);
             }
         });
     }
@@ -328,7 +340,7 @@ void network_update_dest_route(graph * network, int nodeIndex){
 }
 
 
-void network_find_paths_to(graph * network,int destination){
+void network_find_paths_to(graph * network,int destination, enum calc_type flag){
 
     NULLPO_RETVE(network,"Error - network_find_paths_to : network is null.");
     ASSERT_RETVE(destination >= NETWORK_SIZE,"Error - network_find_paths_to : destination not found in network.");
@@ -342,7 +354,7 @@ void network_find_paths_to(graph * network,int destination){
     }
     network->dest = destination;
 
-    if(network->isCommercial){
+    if(network->isCommercial &&  flag == CALC_TYPE){
         /*A network being commercially connected implies that each node, in the worst case scenario,
         * can connect to all the othes via a provider route, by initiliazing all routes type to "provider",
         * we can skip iterating over all costumers routes later on . (1) */
@@ -350,7 +362,11 @@ void network_find_paths_to(graph * network,int destination){
     }
 
     network->dest_route[destination].route_type = R_SELF;
-    network_update_dest_route(network,destination);
+    network->dest_route[destination].nHops = -1;
+    network->dest_route[destination].advertiser = destination;
+    network->flag = flag;
+
+    network_update_dest_route(network,destination,0);
     printf("network_find_paths_to: Finishing calculating routes to %d.\n",destination);
 }
 
@@ -413,8 +429,10 @@ void routeType_toString(char * retval,enum route_type routeType){
 }
 void network_create_log(graph * network, char * filename){
     FILE * fp;
+    char realpath_[300];
+
     char routetype[][50] = {
-        "has no route to destionation",
+        "has no route to destination",
         "elects a provider route",
         "elects a peer route",
         "elects a costumer route",
@@ -438,7 +456,7 @@ void network_create_log(graph * network, char * filename){
         fprintf(fp,"\tCommercially connected.\n");      
     }
     else{
-        fprintf(fp,"\t Not commercially connected.\n");      
+        fprintf(fp,"\tNot commercially connected.\n");      
     }
 
     if(network->dest){
@@ -446,9 +464,29 @@ void network_create_log(graph * network, char * filename){
         fprintf(fp,"Route types elected to reach node %d:\n",network->dest);
         FOREACH(NETWORK_SIZE,{
             if(network->nodes[iterator] != NULL){
-                fprintf(fp,"\t Node %d %s\n",iterator,routetype[network->dest_route[iterator].route_type]);
+                fprintf(fp,"\t Node %d",iterator);
+
+                if(network->flag & CALC_TYPE){
+                    fprintf(fp," %s",routetype[network->dest_route[iterator].route_type]);
+                }
+
+                if(network->dest_route[iterator].route_type != R_SELF 
+                    && network->dest_route[iterator].route_type != R_NONE){
+                    
+                    if(network->flag & CALC_ADVERTISER){
+                        fprintf(fp," from %d",network->dest_route[iterator].advertiser); 
+                    }
+                    if(network->flag & CALC_HOPS){
+                        fprintf(fp," with %d hops",network->dest_route[iterator].nHops); 
+                    }
+                }
+                fprintf(fp,"\n");
+                   
             }
         });
     }
     fclose(fp);
+    if(realpath(filename,realpath_))
+        printf("Logs saved in %s\n",realpath_);
+
 }

@@ -40,7 +40,27 @@ int main(int argc, char * argv[]){
 
         if(command == 'n'){
             if(sscanf(extra,"%d",&dest) > 0){
-                network_find_paths_to(network,dest);
+                enum calc_type type = CALC_NONE;
+                printf("Find paths to node %d: , chose one or more options:\n", dest);
+                printf("Multiple options are composed by the sums of their parts:\n");
+
+                while(1){
+                    printf("\tCalculate the types of each path to reach the destination (%d)\n",CALC_TYPE);
+                    printf("\tCalculate number of hops in each path (%d)\n",CALC_HOPS);
+                    printf("\tCalculate path advertisers (%d)\n",CALC_ADVERTISER);
+                    printf("\tGo back (%d)\n",CALC_NONE);
+
+                    fgets(line,MEDIUM_STR_SIZE,stdin);
+                    if(sscanf(line, "%d", &type)){
+                        if(type >= CALC_NONE && type <= CALC_ALL) break;
+                        printf("Invalid option %d \n", type);
+                        printf("Usage:\n");
+                    }
+                }
+                if(type == CALC_NONE) continue;
+                
+                network_find_paths_to(network,dest,type);
+                
                 while(1){
                     printf("Would you like to create a log? (y / n) \n");
                     fgets(line,MEDIUM_STR_SIZE,stdin);
@@ -50,7 +70,7 @@ int main(int argc, char * argv[]){
                         char * p = log_file_name;
                         time_t rawtime = time(NULL);
                         time_s = gmtime(&rawtime);
-                        strftime(log_file_name, sizeof(log_file_name), "log_%Y-%m-%d_%H:%M:%S.txt", time_s);
+                        strftime(log_file_name, sizeof(log_file_name), "logs/%Y-%m-%d_%H:%M:%S.txt", time_s);
                         for (; *p; ++p)
                         {
                             if (*p == ' ')
