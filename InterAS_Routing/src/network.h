@@ -11,14 +11,16 @@ enum calc_type{
     CALC_ALL = CALC_HOPS | CALC_ADVERTISER | CALC_TYPE
 };
 
-typedef struct graph_ graph;
+struct network_interface{
+    bool (*create_from_file) (FILE * fp);
+    bool (*ensure_no_costumer_cycle) (void);
+    bool (*check_commercial) (void);
+    void (*find_paths_to) (int destination,enum calc_type flag);
+    void (*print_log) (FILE * fp);
+    void (*destroy) (void);
+};
 
-graph * network_create_from_file(FILE * fp);
 
-void network_ensure_no_costumer_cycle(graph * network);
-void network_check_commercial(graph * network);
-void network_find_paths_to(graph * network, int destination,enum calc_type flag);
-void network_print(graph * network,FILE * fp);
-void network_destroy(graph * network);
-void network_create_log(graph * network, char * filename);
+struct network_interface * network_init();
+struct graph_;
 #endif

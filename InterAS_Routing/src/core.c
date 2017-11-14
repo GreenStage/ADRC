@@ -10,13 +10,13 @@
 #include <string.h>
 #include "defs.h"
 #include "network.h"
-#include <time.h>
+extern struct graph_ network_data;
 
 int main(int argc, char * argv[]){
-    FILE * fp;
+    struct network_interface  * network;
+    FILE * fp, *output;
     char line[100], command, extra[50], log_file_name[50];
     int dest;
-    graph * network;
     bool quit = false;
 
     ASSERT_RETRE(argc < 2, EXIT_MISSING_ARG, "Missing input file name.");
@@ -24,14 +24,17 @@ int main(int argc, char * argv[]){
     fp = fopen(argv[1],"r");
     NULLPO_RETRE(fp,EXIT_INVALID_FILE,"Cannot open file.");
 
-    network = network_create_from_file(fp);
+    network = network_init();
+
+    quit = !network->create_from_file(fp);
     fclose(fp);
     
-    NULLPO_RETRE(network,EXIT_FAILURE,"Cannot create network from file.");
+    ASSERT_RETRE(quit == true,EXIT_FAILURE,"Cannot create network from file.");
     
-    network_ensure_no_costumer_cycle(network);
+    ASSERT_RETRE(!network->ensure_no_costumer_cycle(),EXIT_COSTUMER_CYCLE,"Network has costumer cycles.");
+    
+    network->check_commercial();
 
-    network_check_commercial(network);
     //TODO PRINT READY
     while(!quit){
 
@@ -59,51 +62,55 @@ int main(int argc, char * argv[]){
                 }
                 if(type == CALC_NONE) continue;
                 
-                network_find_paths_to(network,dest,type);
+                network->find_paths_to(dest,type);
                 
                 while(1){
-                    printf("Would you like to create a log? (y / n) \n");
+                    printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
                     fgets(line,MEDIUM_STR_SIZE,stdin);
-                    sscanf(line, "%c", &command); 
-                    if(command == 'y'){
-                        struct tm *time_s;
-                        char * p = log_file_name;
-                        time_t rawtime = time(NULL);
-                        time_s = gmtime(&rawtime);
-                        strftime(log_file_name, sizeof(log_file_name), "logs/%Y-%m-%d_%H:%M:%S.txt", time_s);
-                        for (; *p; ++p)
-                        {
-                            if (*p == ' ')
-                                  *p = '_';
+                    if(sscanf(line, "%s",extra)){
+                        sprintf(log_file_name,"logs/%s",extra);
+        
+                        if(strcmp(extra,"stdout")){
+                            output = fopen(log_file_name,"w");
+                            if(output == NULL){
+                                printf("Could not open %s for writing.\n",log_file_name);
+                                continue;
+                            }
+                            network->print_log(output);
+                            fclose(output);
                         }
-                        network_create_log(network,log_file_name);
-                        break;
+                        else network->print_log(stdout);
                     }
-                    else if(command == 'n') break;
+
+                    break;
                 }
 
             }
         }
         else if(command == 'l'){
-            if(sscanf(extra,"%s",log_file_name) > 0){
-                struct tm *time_s;
-                char * p = log_file_name;
-                time_t rawtime = time(NULL);
-                time_s = gmtime(&rawtime);
-                strftime(log_file_name, sizeof(log_file_name), "logs/%Y-%m-%d_%H:%M:%S.txt", time_s);
-                for (; *p; ++p)
-                {
-                    if (*p == ' ')
-                          *p = '_';
+            printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
+            fgets(line,MEDIUM_STR_SIZE,stdin);
+
+            if(sscanf(line, "%s",extra)){
+                sprintf(log_file_name,"logs/%s",extra);
+
+                if(strcmp(extra,"stdout")){
+                    output = fopen(log_file_name,"w");
+                    if(output == NULL){
+                        printf("Could not open %s for writing.\n",log_file_name);
+                        continue;
+                    }
+                    network->print_log(output);
+                    fclose(output);
                 }
-                network_create_log(network,log_file_name);
+                else network->print_log(stdout);
             }
         }
         else if(command == 'q'){
             quit = true;
         }
     }
-    network_destroy(network);
+    network->destroy();
 
     return 0;
 

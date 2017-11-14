@@ -12,6 +12,7 @@
 #define EXIT_FAILURE 1
 #define EXIT_MISSING_ARG 2
 #define EXIT_INVALID_FILE 3
+#define EXIT_COSTUMER_CYCLE 4
 
 #define SMALL_STR_SIZE 50
 #define MEDIUM_STR_SIZE 100
@@ -19,6 +20,7 @@
 #define EMPTY_HOP 0
 #define MAX_TREE_HEIGHT 16
 
+#define MIN(A,B) (A < B) ? (A) : (B)
 
 /******************************************************
  ***************** String macros **********************
@@ -99,4 +101,5 @@ do{ \
 } while(0)
 
 typedef enum bool_{ false, true} bool;
+
 #endif
