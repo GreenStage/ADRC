@@ -3,7 +3,7 @@
 #include "heap.h"
 
 
-void heap_fix_up(item * array, unsigned int pos,bool (*comparator)(item,item)){
+void heap_fix_up(item * array, unsigned pos,bool (*comparator)(item,item)){
     item aux;
     while(pos > 0 && comparator(array[pos],array[ (pos-1)/2 ])){
         memcpy(&aux,&array[pos],sizeof(item));
@@ -13,9 +13,12 @@ void heap_fix_up(item * array, unsigned int pos,bool (*comparator)(item,item)){
     }
 }
 
-void heap_fix_down(item * array, unsigned int pos, unsigned int nElements, bool (*comparator)(item,item)){
+void heap_fix_down(item * array, unsigned pos, unsigned nElements, bool (*comparator)(item,item)){
     item aux;
-    unsigned int i,j;
+    unsigned i,j;
+    
+    if(nElements == 0) return;
+
     for(i = pos; 2 * i + 1 < nElements - 1; i = j){
         j = 2 * i + 1;
 

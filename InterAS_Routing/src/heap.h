@@ -3,7 +3,7 @@
 
 #include "defs.h"
 
-typedef int item;
+typedef unsigned item;
 
 void heap_fix_up(item * array, unsigned int pos,bool (*comparator)(item,item));
 

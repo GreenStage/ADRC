@@ -10,13 +10,12 @@
 #include <string.h>
 #include "defs.h"
 #include "network.h"
-extern struct graph_ network_data;
 
 int main(int argc, char * argv[]){
     struct network_interface  * network;
     FILE * fp, *output;
     char line[100], command, extra[50], log_file_name[50];
-    int dest;
+    unsigned dest;
     bool quit = false;
 
     ASSERT_RETRE(argc < 2, EXIT_MISSING_ARG, "Missing input file name.");
@@ -42,7 +41,7 @@ int main(int argc, char * argv[]){
         sscanf(line, "%c %s", &command,extra);
 
         if(command == 'n'){
-            if(sscanf(extra,"%d",&dest) > 0){
+            if(sscanf(extra,"%u",&dest) > 0){
                 enum calc_type type = CALC_NONE;
                 printf("Find paths to node %d: , chose one or more options:\n", dest);
                 printf("Multiple options are composed by the sums of their parts:\n");
@@ -63,7 +62,9 @@ int main(int argc, char * argv[]){
                 if(type == CALC_NONE) continue;
                 
                 network->find_paths_to(dest,type);
-                
+                    
+                printf("network_find_paths_to: Finishing calculating routes to %d.\n",dest);
+
                 while(1){
                     printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
                     fgets(line,MEDIUM_STR_SIZE,stdin);
@@ -86,6 +87,10 @@ int main(int argc, char * argv[]){
                 }
 
             }
+        }
+        else if(command == 's'){
+            network->parse_all();
+            printf("Finished calculating statistics.\n");
         }
         else if(command == 'l'){
             printf("Insert output log file name or \"stdout\" in order to print to the console. \n");

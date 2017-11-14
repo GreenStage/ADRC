@@ -2,6 +2,7 @@
 #define NETWORK_HEADER
 
 #define NETWORK_SIZE 65651
+#define MAX_DISTANCE 1000
 
 enum calc_type{
     CALC_NONE = 0,
@@ -15,12 +16,13 @@ struct network_interface{
     bool (*create_from_file) (FILE * fp);
     bool (*ensure_no_costumer_cycle) (void);
     bool (*check_commercial) (void);
-    void (*find_paths_to) (int destination,enum calc_type flag);
+    void (*find_paths_to) (unsigned destination,enum calc_type flag);
     void (*print_log) (FILE * fp);
     void (*destroy) (void);
+    void (*parse_all)(void);
 };
 
 
 struct network_interface * network_init();
-struct graph_;
+
 #endif

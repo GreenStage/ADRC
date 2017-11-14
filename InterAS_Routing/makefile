@@ -1,9 +1,9 @@
 #makefile
-CFLAGS = -D_BSD_SOURCE 
+CFLAGS = -D_BSD_SOURCE -O3
 
 all: as_router
 
-debug: CFLAGS +=  -g
+debug: CFLAGS += 
 
 
 debug: main.o network.o list.o heap.o
