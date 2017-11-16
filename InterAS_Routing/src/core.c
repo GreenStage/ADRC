@@ -40,7 +40,9 @@ int main(int argc, char * argv[]){
     
     ASSERT_RETRE(!network->ensure_no_costumer_cycle(),EXIT_COSTUMER_CYCLE,"Network has costumer cycles.");
     
-    network->check_commercial();
+    if(network->check_commercial()){
+        printf("Network is commercially connected.\n");
+    }
 
     /*TODO PRINT READY*/
     while(!quit){

@@ -46,8 +46,8 @@ typedef struct graph_{
     /*Array keeping track of unvisited nodes*/
     /*Visited nodes stack on the end of the array, separated from the 
      *unvisited ones by visitQueuePos*/
+    /*It is treated like a heap on statistic calculation*/
     unsigned visitQueue[NETWORK_SIZE];
-
 
     /* "To visit" / "Visited" divider*/
     long int visitQueuePos;
@@ -62,6 +62,7 @@ typedef struct graph_{
     bool fullstats;
     unsigned dest;
     unsigned distanceArray[MAX_DISTANCE];
+    unsigned routeTypesArray[R_SELF+1];
 
 } graph;
 
@@ -145,14 +146,13 @@ bool network_create_from_file(FILE * fp){
         network_data->edgesCount++;
     }
 
-#ifdef DEBUG
     for(i = 0, type = 0; i < NETWORK_SIZE;i ++){
         if(network_data->nodes[i] && network_data->nodes[i]->stubBy1Provider){
             type++;
         }
     }
-    printf("DEBUG: Found %d stub nodes with only 1 neighbor (Provider)\n",type);
-#endif
+    printf("Found %d (%f%%) stub nodes with only 1 neighbor (Provider)\n",type,(float)(((float)type/(float)network_data->nodesCount)*100));
+
     network_data->visitQueuePos =  network_data->edgesCount -1;
 
     return true;
@@ -306,11 +306,19 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Costumer with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
+                if(network_data->dest_route[id].route_type != R_COSTUMER){
+                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                    network_data->routeTypesArray[R_COSTUMER]++;
+                }
+
+
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
 
+                
                 /*Add to visit queue*/
                 network_data->visitQueuePos++;
                 network_data->visitQueue[network_data->visitQueuePos] = id;
+
                 heap_fix_up(network_data->visitQueue,network_data->visitQueuePos,routecmpById);
             }
 
@@ -325,6 +333,11 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Peer with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
+                if(network_data->dest_route[id].route_type != R_PEER){
+                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                    network_data->routeTypesArray[R_PEER]++;
+                }
+
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
 
                 /*Add to visit queue*/
@@ -348,6 +361,11 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Provider with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
+                if(network_data->dest_route[id].route_type != R_PROVIDER){
+                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                    network_data->routeTypesArray[R_PROVIDER]++;
+                }
+
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
 
                 /*Add to visit queue*/
@@ -369,6 +387,8 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
     NULLPO_RETVE(network_data->nodes[destination],"Error - network_find_paths_to : destination not found in network.");
 
     memset(network_data->dest_route,0,NETWORK_SIZE * sizeof(route));
+    memset(network_data->distanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
+    memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(unsigned));
 
     network_data->dest = destination;
 
@@ -379,7 +399,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
         FOREACH(NETWORK_SIZE,network_data->dest_route[iterator].route_type = R_PROVIDER );
     }
 
-    memset(network_data->visitQueue,0,sizeof(unsigned) * NETWORK_SIZE);
+    /*memset(network_data->visitQueue,0,sizeof(unsigned) * NETWORK_SIZE);*/
     network_data->visitQueue[0] = destination;
     network_data->visitQueuePos = 0;
     
@@ -435,6 +455,11 @@ void network_print_log(FILE * fp){
         "elects a costumer route",
         "is the destination itself"
     };
+    char routeAll[][50] = {
+        "provider routes elected",
+        "peer routes elected",
+        "costumer routes elected"
+    };
 
     NULLPO_RETVE(network_data,"Network is null");
     NULLPO_RETVE(fp,"File descriptor is null");
@@ -461,6 +486,10 @@ void network_print_log(FILE * fp){
             if(network_data->distanceArray[i] != 0){
                 fprintf(fp,"\t %d paths with %d hops\n",network_data->distanceArray[i],i);
             }
+        }
+        fprintf(fp,"\nRoutes type stats:\n");
+        for(i = R_PROVIDER;i <R_SELF;i++){
+            fprintf(fp,"There are %d %s\n",network_data->routeTypesArray[i], routeAll[i - R_PROVIDER]);
         }
     }
 
@@ -497,33 +526,31 @@ void network_print_log(FILE * fp){
 }
 
 void network_parse_all(){
-    bool destRqst = false;
     route aux[NETWORK_SIZE];
+    unsigned auxTypeArray[R_SELF+1];
     int sumDistanceArray[MAX_DISTANCE];
     list_node * listptr;
     unsigned i,id,j;
     clock_t start, end;
 
-    /*Save previously calculated paths*/
-    destRqst = network_data->dest;
-    memcpy(aux,network_data->dest_route,NETWORK_SIZE*sizeof(route));
-
     memset(sumDistanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
+    memset(auxTypeArray,0,sizeof(unsigned) * (R_SELF +1));
+
     start = clock();
 
     printf("Calculating statistics,this might take some minutes.\n");
     
+
     for(i = 0; i < NETWORK_SIZE; i++){
-        memset(network_data->distanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
 
-      /*  if(i%600 ==0 ){
-
+    if(i%600 ==0 ){
             end = clock();
             int c = (double) (end - start)/CLOCKS_PER_SEC;
             printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
-        }
-    */
+    }
+
         if(network_data->nodes[i] != NULL){
+
 
             /*Heuristic*/
             if(network_data->nodes[i]->stubBy1Provider || (network_data->isCommercial && network_data->nodes[i]->adjCtr == 1))
@@ -537,13 +564,17 @@ void network_parse_all(){
 
                 if(!network_data->nodes[id]->stubBy1Provider)
                     continue;
+                
 
                 sumDistanceArray[1] = sumDistanceArray[1] + 1;
                 sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-
                 for(j = 2; j < MAX_DISTANCE - 1;j++){
                     sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                }                     
+                }       
+
+                auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] + 1;
+                auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] - 1;
+                auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];
             }
             
             /*Heuristic*/
@@ -553,13 +584,18 @@ void network_parse_all(){
 
                     if(network_data->nodes[id]->adjCtr != 1)
                         continue;
-
+                    
                     sumDistanceArray[1] = sumDistanceArray[1] + 1;
                     sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
 
                     for(j = 2; j < MAX_DISTANCE - 1;j++){
                         sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                    }                        
+                    }  
+                    
+                    auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER];
+                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER];
+                    auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];
+
                 }
 
                 for(listptr = network_data->nodes[i]->links[PROVIDER]; listptr != NULL; listptr = list_next(listptr)){
@@ -573,27 +609,43 @@ void network_parse_all(){
 
                     for(j = 2; j < MAX_DISTANCE - 1;j++){
                         sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                    }                              
+                    } 
+                    
+                    auxTypeArray[R_COSTUMER] = auxTypeArray[COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] - 1;
+                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] + 1;
+                    auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];                             
                 }
             }
+
+            for(j = R_NONE;j <= R_SELF;j++){
+                auxTypeArray[j] =  network_data->routeTypesArray[j] + auxTypeArray[j];
+            }
+
+            for(j = 0; j < MAX_DISTANCE;j++){
+                sumDistanceArray[j] = sumDistanceArray[j] + network_data->distanceArray[j];
+            }
+
+            
         }
 
-        for(j = 0; j < MAX_DISTANCE;j++){
-            sumDistanceArray[j] = sumDistanceArray[j] + network_data->distanceArray[j];
-        }
-      
     }
+
 
     for(j = 0; j < MAX_DISTANCE;j++){
         network_data->distanceArray[j] = sumDistanceArray[j] >> 1;
     }
 
+    for(j = R_NONE;j <= R_SELF;j++){
+        network_data->routeTypesArray[j] = auxTypeArray[j];
+    }
+
     memcpy(network_data->dest_route,aux,NETWORK_SIZE*sizeof(route));
     network_data->fullstats = true;
-    network_data->dest = destRqst;
+    network_data->dest = false;
 
     end = clock();
     int c = (double) (end - start)/CLOCKS_PER_SEC;
+
     printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
 
     return;
