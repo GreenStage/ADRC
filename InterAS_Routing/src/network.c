@@ -543,12 +543,12 @@ void network_parse_all(){
 
     for(i = 0; i < NETWORK_SIZE; i++){
 
-    if(i%600 ==0 ){
+ /*   if(i%600 ==0 ){
             end = clock();
             int c = (double) (end - start)/CLOCKS_PER_SEC;
             printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
     }
-
+*/
         if(network_data->nodes[i] != NULL){
 
 
