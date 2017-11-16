@@ -538,19 +538,12 @@ void network_parse_all(){
                 if(!network_data->nodes[id]->stubBy1Provider)
                     continue;
 
-                for(j = 0; j < MAX_DISTANCE - 1;j++){
-                    switch(j){
-                        case 0:
-                            sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                            break;
-                        case 1:
-                            sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-                            break;
-                        default:
-                            sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                            break;
-                    }
-                }                    
+                sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+
+                for(j = 2; j < MAX_DISTANCE - 1;j++){
+                    sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
+                }                     
             }
             
             /*Heuristic*/
@@ -561,19 +554,12 @@ void network_parse_all(){
                     if(network_data->nodes[id]->adjCtr != 1)
                         continue;
 
-                    for(j = 0; j < MAX_DISTANCE - 1;j++){
-                        switch(j){
-                            case 0:
-                                sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                                break;
-                            case 1:
-                                sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-                                break;
-                            default:
-                                sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                                break;
-                        }
-                    }                          
+                    sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                    sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+
+                    for(j = 2; j < MAX_DISTANCE - 1;j++){
+                        sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
+                    }                        
                 }
 
                 for(listptr = network_data->nodes[i]->links[PROVIDER]; listptr != NULL; listptr = list_next(listptr)){
@@ -582,18 +568,11 @@ void network_parse_all(){
                     if(network_data->nodes[id]->adjCtr != 1)
                         continue;
 
-                    for(j = 0; j < MAX_DISTANCE - 1;j++){
-                        switch(j){
-                            case 0:
-                                sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                                break;
-                            case 1:
-                                sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-                                break;
-                            default:
-                                sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                                break;
-                        }
+                    sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                    sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+
+                    for(j = 2; j < MAX_DISTANCE - 1;j++){
+                        sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
                     }                              
                 }
             }

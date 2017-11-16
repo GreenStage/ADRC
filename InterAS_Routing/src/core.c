@@ -46,7 +46,7 @@ int main(int argc, char * argv[]){
     while(!quit){
         FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
         
-        fgets(line,MEDIUM_STR_SIZE,stdin);
+        if(!fgets(line,MEDIUM_STR_SIZE,stdin)) break;
         sscanf(line, "%c %s", &command,extra);
         
         if(command == 'n'){
@@ -61,7 +61,10 @@ int main(int argc, char * argv[]){
                     printf("\tCalculate path advertisers (%d)\n",CALC_ADVERTISER);
                     printf("\tGo back (%d)\n",CALC_NONE);
 
-                    fgets(line,MEDIUM_STR_SIZE,stdin);
+                    if(!fgets(line,MEDIUM_STR_SIZE,stdin)){
+                        quit = true;
+                        break;
+                    }
                     if(sscanf(line, "%u", &type)){
                         if(type >= CALC_NONE && type <= CALC_ALL) break;
                         printf("Invalid option %d \n", type);
@@ -76,7 +79,11 @@ int main(int argc, char * argv[]){
 
                 while(1){
                     printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
-                    fgets(line,MEDIUM_STR_SIZE,stdin);
+                    
+                    if(!fgets(line,MEDIUM_STR_SIZE,stdin)){
+                        quit = true;
+                        break;
+                    }
                     if(sscanf(line, "%s",extra)){
                         sprintf(log_file_name,"logs/%s",extra);
         
@@ -103,7 +110,10 @@ int main(int argc, char * argv[]){
         }
         else if(command == 'l'){
             printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
-            fgets(line,MEDIUM_STR_SIZE,stdin);
+            if(!fgets(line,MEDIUM_STR_SIZE,stdin)){
+                quit = true;
+                break;
+            }
 
             if(sscanf(line, "%s",extra)){
                 sprintf(log_file_name,"logs/%s",extra);
