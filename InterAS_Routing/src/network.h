@@ -9,7 +9,8 @@ enum calc_type{
     CALC_TYPE = 0x1,
     CALC_HOPS = 0x2,
     CALC_ADVERTISER = 0x4,
-    CALC_ALL = CALC_HOPS | CALC_ADVERTISER | CALC_TYPE
+    CALC_ALL = CALC_HOPS | CALC_ADVERTISER | CALC_TYPE,
+    
 };
 
 struct network_interface{

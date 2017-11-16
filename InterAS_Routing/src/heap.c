@@ -5,11 +5,11 @@
 
 void heap_fix_up(item * array, unsigned pos,bool (*comparator)(item,item)){
     item aux;
-    while(pos > 0 && comparator(array[pos],array[ (pos-1)/2 ])){
+    while(pos > 0 && comparator(array[pos],array[ (pos-1) >> 1 ])){
         memcpy(&aux,&array[pos],sizeof(item));
-        memcpy(&array[pos],&array[ (pos-1)/2 ],sizeof(item));
-        memcpy(&array[ (pos-1)/2 ],&aux,sizeof(item));
-        pos = (pos-1)/2;
+        memcpy(&array[pos],&array[ (pos-1) >> 1 ],sizeof(item));
+        memcpy(&array[ (pos-1) >> 1],&aux,sizeof(item));
+        pos = (pos-1) >> 1;
     }
 }
 
@@ -19,8 +19,8 @@ void heap_fix_down(item * array, unsigned pos, unsigned nElements, bool (*compar
     
     if(nElements == 0) return;
 
-    for(i = pos; 2 * i + 1 < nElements - 1; i = j){
-        j = 2 * i + 1;
+    for(i = pos; (i << 1) + 1 < nElements - 1; i = j){
+        j = (i << 1) + 1;
 
         if( j + 1 < nElements - 1 && comparator(array[j + 1],array[j]) ){
             j++;

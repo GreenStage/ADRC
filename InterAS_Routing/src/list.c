@@ -18,7 +18,8 @@ list_node * list_next(list_node * ptr){
 }
 
 void list_free(list_node * head, void (* free_data) (void*)){
-    list_node * aux = head;
+    list_node * aux;
+    
     while(head != NULL){
         aux = head;
         head = head->next;

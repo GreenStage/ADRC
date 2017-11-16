@@ -18,6 +18,14 @@ int main(int argc, char * argv[]){
     unsigned dest;
     bool quit = false;
 
+    char help[][50]={
+        "Usage:\n",
+        "\tFind paths to a destination: n <destination>\n",
+        "\tCalculate Statistics: s\n",
+        "\tWrite log: l\n",
+        "\tExit: q\n"
+    };
+
     ASSERT_RETRE(argc < 2, EXIT_MISSING_ARG, "Missing input file name.");
     
     fp = fopen(argv[1],"r");
@@ -34,12 +42,13 @@ int main(int argc, char * argv[]){
     
     network->check_commercial();
 
-    //TODO PRINT READY
+    /*TODO PRINT READY*/
     while(!quit){
-
+        FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
+        
         fgets(line,MEDIUM_STR_SIZE,stdin);
         sscanf(line, "%c %s", &command,extra);
-
+        
         if(command == 'n'){
             if(sscanf(extra,"%u",&dest) > 0){
                 enum calc_type type = CALC_NONE;
