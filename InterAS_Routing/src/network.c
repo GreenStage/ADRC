@@ -11,7 +11,7 @@ enum link_type {
     PROVIDER
 };
 enum link_type reverseLink[]={
-    PROVIDER = 0,
+    PROVIDER,
     PEER,
     COSTUMER
 };
