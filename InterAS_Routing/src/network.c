@@ -83,7 +83,7 @@ void free_link(unsigned * rt){
 
 bool routecmp(route * r1,route * r2){
     if( ( r1->route_type == r2->route_type && r1->nHops < r2->nHops ) 
-        || r1->route_type > r2->route_type) {
+        || r1->route_type > r2->route_type || r2->nHops == -1) {
             
         return true;
     }
@@ -457,7 +457,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
         * we can skip iterating over all costumers routes later on . (1) */
         for(it = 0; it < NETWORK_SIZE;it++){
             network_data->dest_route[it].route_type = R_PROVIDER;
-            network_data->dest_route[it].nHops = 99999;
+            network_data->dest_route[it].nHops = -1;
         }
         network_data->routeTypesArray[R_PROVIDER] = network_data->nodesCount - 1;
     }
