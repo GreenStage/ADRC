@@ -6,12 +6,12 @@
 #include <time.h>
 
 enum link_type {
-    COSTUMER,
+    COSTUMER = 0,
     PEER,
     PROVIDER
 };
 enum link_type reverseLink[]={
-    PROVIDER,
+    PROVIDER = 0,
     PEER,
     COSTUMER
 };
@@ -358,7 +358,7 @@ void network_update_dest_route(unsigned nodeIndex){
     aux_route->advertiser = nodeIndex;
     aux_route->route_type = R_NONE;
 
-    //Adversite costumer routes to all neighborsq
+    /*Adversite costumer routes to all neighbors*/
     if(network_data->dest_route[nodeIndex].route_type >= R_COSTUMER){
 
         aux_route->route_type = R_COSTUMER;
