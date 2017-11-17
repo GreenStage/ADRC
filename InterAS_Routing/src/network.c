@@ -70,7 +70,7 @@ typedef struct graph_{
     enum calc_type stats;
     unsigned dest;
     unsigned distanceArray[MAX_DISTANCE];
-    unsigned routeTypesArray[R_SELF+1];
+    long unsigned routeTypesArray[R_SELF+1];
 
 } graph;
 
@@ -358,6 +358,7 @@ void network_update_dest_route(unsigned nodeIndex){
     aux_route->advertiser = nodeIndex;
     aux_route->route_type = R_NONE;
 
+    //Adversite costumer routes to all neighborsq
     if(network_data->dest_route[nodeIndex].route_type >= R_COSTUMER){
 
         aux_route->route_type = R_COSTUMER;
@@ -649,9 +650,13 @@ void network_print_log(FILE * fp){
     }
 
     if(network_data->stats & CALC_TYPE){
+        long unsigned sum = network_data->routeTypesArray[R_COSTUMER] + network_data->routeTypesArray[R_PEER]
+                            + network_data->routeTypesArray[R_PROVIDER];
         fprintf(fp,"\nRoutes type stats:\n");
         for(i = R_PROVIDER;i <R_SELF;i++){
-            fprintf(fp,"There are %d %s\n",network_data->routeTypesArray[i], routeAll[i - R_PROVIDER]);
+            long double pc = network_data->routeTypesArray[i];
+            pc = pc / sum * 100;
+            fprintf(fp,"There are %lu [%02Lf%%] %s\n",network_data->routeTypesArray[i],pc, routeAll[i - R_PROVIDER]);
         }
     }
     if(network_data->stats & CALC_HOPS){
