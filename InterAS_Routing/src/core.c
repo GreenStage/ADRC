@@ -12,7 +12,6 @@
 #include "network.h"
 
 int main(int argc, char * argv[]){
-    struct network_interface  * network;
     FILE * fp, *output;
     char line[100], command, extra[50], log_file_name[50];
     unsigned dest;
@@ -31,7 +30,7 @@ int main(int argc, char * argv[]){
     fp = fopen(argv[1],"r");
     NULLPO_RETRE(fp,EXIT_INVALID_FILE,"Cannot open file.");
 
-    network = network_init();
+    network_init();
 
     quit = !network->create_from_file(fp);
     fclose(fp);
@@ -43,11 +42,10 @@ int main(int argc, char * argv[]){
     if(network->check_commercial()){
         printf("Network is commercially connected.\n");
     }
-
+    FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
     /*TODO PRINT READY*/
     while(!quit){
-        FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
-        
+
         if(!fgets(line,MEDIUM_STR_SIZE,stdin)) break;
         sscanf(line, "%c %s", &command,extra);
         
@@ -107,8 +105,24 @@ int main(int argc, char * argv[]){
             }
         }
         else if(command == 's'){
-            network->parse_all();
-            printf("Finished calculating statistics.\n");
+            char response;
+            while(1){
+                printf("Should the statistics contain number of hops info?\n");
+                printf("(y) / (n) \n");
+                if(scanf("%c",&response)){
+                    if(response == 'y'){
+                        network->parse_all(CALC_ALL);
+                        printf("Finished calculating statistics.\n");
+                        break;
+                    }
+                      
+                    else if(response == 'n'){
+                        network->parse_all(CALC_TYPE);
+                        printf("Finished calculating statistics.\n");
+                        break;
+                    }         
+                }
+            }
         }
         else if(command == 'l'){
             printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
@@ -137,7 +151,7 @@ int main(int argc, char * argv[]){
         }
     }
     network->destroy();
-
+    network_finalize();
     return 0;
 
 }

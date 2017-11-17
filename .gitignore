@@ -1,3 +1,4 @@
 /.vscode/*
 *.o
-*/logs/*.txt
+*/logs/*
+!*/logs/dummy

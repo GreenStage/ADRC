@@ -16,7 +16,21 @@ void * list_get_data(list_node * ptr){
 list_node * list_next(list_node * ptr){
     return ptr->next;
 }
+list_node * list_free_node(list_node * prev,list_node * rmn,void (*free_data)(void*)){
+    list_node * aux = NULL;
 
+    NULLPO_RETR(rmn,NULL);
+    aux = rmn->next;
+    if(prev)
+        prev->next = aux;
+
+    free_data(rmn->data);
+    free(rmn);
+
+        
+    return aux;
+
+}
 void list_free(list_node * head, void (* free_data) (void*)){
     list_node * aux;
     

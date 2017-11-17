@@ -20,10 +20,11 @@ struct network_interface{
     void (*find_paths_to) (unsigned destination,enum calc_type flag);
     void (*print_log) (FILE * fp);
     void (*destroy) (void);
-    void (*parse_all)(void);
+    void (*parse_all)(enum calc_type type);
 };
 
-
-struct network_interface * network_init();
+struct network_interface * network;
+void network_init();
+void network_finalize();
 
 #endif

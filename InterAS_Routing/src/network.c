@@ -10,7 +10,11 @@ enum link_type {
     PEER,
     PROVIDER
 };
-
+enum link_type reverseLink[]={
+    PROVIDER,
+    PEER,
+    COSTUMER
+};
 
 enum route_type{
     R_NONE = 0,
@@ -25,6 +29,7 @@ typedef struct node_{
     list_node * links[3]; /*PROVIDER,COSTUMER,PEER*/
     int adjCtr;
     bool stubBy1Provider;
+    int topTierId;
     unsigned visitQueuePos; /* FOR FAST LOOKUP ON THE VISIT QUEUE ARRAY*/
 } node;
 
@@ -41,6 +46,9 @@ typedef struct graph_{
     /*Array of routes to a destination*/
     route dest_route[NETWORK_SIZE];
     
+    list_node * top_providers;
+    unsigned top_provider_ctr;
+
     bool onStack[NETWORK_SIZE];
 
     /*Array keeping track of unvisited nodes*/
@@ -59,7 +67,7 @@ typedef struct graph_{
     unsigned nodesCount, edgesCount;
     enum calc_type flag;
 
-    bool fullstats;
+    enum calc_type stats;
     unsigned dest;
     unsigned distanceArray[MAX_DISTANCE];
     unsigned routeTypesArray[R_SELF+1];
@@ -68,8 +76,12 @@ typedef struct graph_{
 
 graph * network_data = NULL;
 
-bool routecmp(route * r1,route * r2){
 
+void free_link(unsigned * rt){
+    free(rt);
+}
+
+bool routecmp(route * r1,route * r2){
     if( ( r1->route_type == r2->route_type && r1->nHops < r2->nHops ) 
         || r1->route_type > r2->route_type) {
             
@@ -143,12 +155,24 @@ bool network_create_from_file(FILE * fp){
             network_data->nodes[head]->stubBy1Provider = false;
         }
         else if(type == PROVIDER) network_data->nodes[head]->stubBy1Provider = true;
+
+        if(type == PROVIDER){
+            network_data->nodes[head]->topTierId = -1;
+        }
+
         network_data->edgesCount++;
     }
 
     for(i = 0, type = 0; i < NETWORK_SIZE;i ++){
         if(network_data->nodes[i] && network_data->nodes[i]->stubBy1Provider){
             type++;
+        }
+        if(network_data->nodes[i] && network_data->nodes[i]->topTierId != -1){
+            CREATE(appendNode,1);
+            *appendNode = i;
+            network_data->top_providers = list_append(network_data->top_providers,(void *) appendNode);
+            network_data->nodes[i]->topTierId= network_data->top_provider_ctr;
+            network_data->top_provider_ctr++;
         }
     }
     printf("Found %d (%f%%) stub nodes with only 1 neighbor (Provider)\n",type,(float)(((float)type/(float)network_data->nodesCount)*100));
@@ -174,8 +198,8 @@ void visit(unsigned idx){
 
 }
 
-/*Returns number of direct and indirect costumers*/
-void network_parse_costumers(unsigned index){
+/*Returns number of direct and indirect connected nodes*/
+void network_parse_connected(unsigned index,enum link_type type){
     list_node * aux;
     unsigned peer;
 
@@ -188,7 +212,7 @@ void network_parse_costumers(unsigned index){
     /*SWITCH*/
     visit(index);
 
-    for(aux = network_data->nodes[index]->links[COSTUMER]; aux!= NULL; aux = list_next(aux)){
+    for(aux = network_data->nodes[index]->links[type]; aux!= NULL; aux = list_next(aux)){
         peer =  * ((unsigned *) list_get_data(aux));
         if(network_data->onStack[peer]){
             network_data->hasCostumerCycles = true;
@@ -198,7 +222,7 @@ void network_parse_costumers(unsigned index){
         }
         else if(network_data->nodes[peer]->visitQueuePos <= network_data->visitQueuePos){
             network_data->onStack[peer] = true;
-            network_parse_costumers(peer);
+            network_parse_connected(peer,type);
             network_data->onStack[peer] = false;
         }
 
@@ -218,7 +242,7 @@ bool network_ensure_no_costumer_cycle(){
     for(peer = network_data->visitQueue[0]; network_data->visitQueuePos > -1 ; peer = network_data->visitQueue[0]){
 
         network_data->onStack[peer] = true;
-        network_parse_costumers(peer);
+        network_parse_connected(peer,COSTUMER);
         network_data->onStack[peer] = false;
 
         if(network_data->hasCostumerCycles) break;
@@ -240,46 +264,83 @@ so can its costumers.
 From here we can make "groups" of strongly connected nodes
 */
 bool network_check_commercial(){
-    unsigned peer;
-    list_node * ptr;
+    unsigned id1,id2,count;
+    unsigned * appendNode;
+    bool retval;
+    bool ** topTierPeersMatrix;
+    unsigned * topTierPositions;
+
+    list_node * ptr1, * ptr2;
 
     NULLPO_RETRE(network_data,false,"Error - network_check_commercial: network is null.");
     ASSERT_RETR(network_data->hasCostumerCycles,false);
+    NULLPO_RETR(network_data->top_providers,false);
+
+    CREATE(topTierPositions,network_data->top_provider_ctr);
+    CREATE(topTierPeersMatrix,network_data->top_provider_ctr);
+    FOREACH(network_data->top_provider_ctr,CREATE(topTierPeersMatrix[iterator],network_data->top_provider_ctr));
 
     network_data->visitQueuePos = network_data->nodesCount -1;
 
-    /*Go up the providers chain*/
-    for(peer = network_data->visitQueue[0]; network_data->nodes[peer]->links[PROVIDER] != NULL;  
-      peer =  *( (unsigned *) list_get_data(network_data->nodes[peer]->links[PROVIDER]))){
-        /*DFS on costumers in order to append them to the visited group*/
-        network_parse_costumers(peer);
+    for(ptr1 = network_data->top_providers; ptr1 != NULL; ptr1 = list_next(ptr1)){
+        id1 =  *( (unsigned *) list_get_data(ptr1));
+        topTierPositions[network_data->nodes[id1]->topTierId] = id1;
+        for(ptr2 = network_data->nodes[id1]->links[PEER]; ptr2 != NULL; ptr2 = list_next(ptr2)){
+            id2 =  *( (unsigned *) list_get_data(ptr2));
+            if(network_data->nodes[id2]->topTierId >= 0){
+                topTierPeersMatrix[network_data->nodes[id1]->topTierId][network_data->nodes[id2]->topTierId] = true;
+            }
+        }
+    }   
+
+    network_data->isCommercial = true;
+    for(id1 = 0; id1 < network_data->top_provider_ctr;id1++){
+        for(id2 = 0; id2 < network_data->top_provider_ctr;id2++){
+            if(id1 == id2) continue;
+            if(topTierPeersMatrix[id1][id2] != true){
+                network_data->isCommercial = false;
+                break;
+            }
+        }       
+    }
+  
+    if(!network_data->isCommercial){
+        char response;
+        unsigned i,j;
+        printf("network_check_commercial: network is not commercially connected\n" );
+        printf("Do you wish to make the network commercially connected (create missing peer links between tier 1 providers)?\n");
+        printf("(y) / (n)\n");
+        while(1){
+            if(scanf("%c",&response)){
+                if(response == 'y'){
+                    for(id1 = 0; id1 < network_data->top_provider_ctr;id1++){
+                        for(id2 = 0; id2 < network_data->top_provider_ctr;id2++){
+                            if(id1 == id2) continue;
+                            if(topTierPeersMatrix[id1][id2] != true){
+                                CREATE(appendNode,1);
+                                *appendNode = topTierPositions[id2];
+                                network_data->nodes[topTierPositions[id1]]->links[PEER] = list_append(network_data->nodes[topTierPositions[id1]]->links[PEER],(void *) appendNode);
+                                network_data->edgesCount++;
+                            }
+                        }       
+                    }
+                    network_data->isCommercial = network_check_commercial();
+
+                    break;
+             }
+                else if(response == 'n'){
+                    break;
+                }
+            }
+        }
     }
 
-    network_parse_costumers(peer);
 
-    /*Now we now that all nodes on the costumer chain under this tier 1 provider are 
-    *strongly connected, we just need to check for peer routes from here*/
-
-    /*Fetch and append all direct and indirect costumers of each peer to the visited group*/
-
-    for(ptr = network_data->nodes[peer]->links[PEER];ptr != NULL; ptr = list_next(ptr)){
-        peer =  *( (unsigned *) list_get_data(network_data->nodes[peer]->links[PEER])) ;
-        network_parse_costumers(peer);
-    }
-
-    /* - If the network is commercially connected, every node was visited by the algorithm*/
-    /* - If there are still nodes to visit, it means that are nodes that the top tier provider cannot reach,
-    * hence the network is not commercially connected*/
-
-#ifdef DEBUG
-    printf("DEBUG - network_check_commercial: found %ld disconnected nodes\n",network_data->visitQueuePos + 1);
-#endif
-
-    if(network_data->visitQueuePos == -1)
-        network_data->isCommercial = true;
+    FOREACH(network_data->top_provider_ctr,free(topTierPeersMatrix[iterator]));
+    free(topTierPeersMatrix);
+    free(topTierPositions);
 
     network_data->visitQueuePos = network_data->nodesCount -1;
-
     return network_data->isCommercial;
 }
 
@@ -288,10 +349,12 @@ void network_update_dest_route(unsigned nodeIndex){
     static unsigned id = 0;
     static list_node * ptr = NULL;
 
-    network_data->distanceArray[network_data->dest_route[nodeIndex].nHops]++;
 
     aux_route = &network_data->dest_route[0];
+
+    network_data->distanceArray[network_data->dest_route[nodeIndex].nHops]++;
     aux_route->nHops = network_data->dest_route[nodeIndex].nHops + 1;
+
     aux_route->advertiser = nodeIndex;
     aux_route->route_type = R_NONE;
 
@@ -306,10 +369,8 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Costumer with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
-                if(network_data->dest_route[id].route_type != R_COSTUMER){
-                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
-                    network_data->routeTypesArray[R_COSTUMER]++;
-                }
+                network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                network_data->routeTypesArray[R_COSTUMER]++;
 
 
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
@@ -333,10 +394,8 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Peer with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
-                if(network_data->dest_route[id].route_type != R_PEER){
-                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
-                    network_data->routeTypesArray[R_PEER]++;
-                }
+                network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                network_data->routeTypesArray[R_PEER]++;
 
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
 
@@ -361,10 +420,8 @@ void network_update_dest_route(unsigned nodeIndex){
 #ifdef DEBUG
                 printf("Node %d route updated to Provider with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
-                if(network_data->dest_route[id].route_type != R_PROVIDER){
-                    network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
-                    network_data->routeTypesArray[R_PROVIDER]++;
-                }
+                network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
+                network_data->routeTypesArray[R_PROVIDER]++;
 
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
 
@@ -388,6 +445,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
 
     memset(network_data->dest_route,0,NETWORK_SIZE * sizeof(route));
     memset(network_data->distanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
+
     memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(unsigned));
 
     network_data->dest = destination;
@@ -397,6 +455,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
         * can connect to all the othes via a provider route, by initiliazing all routes type to "provider",
         * we can skip iterating over all costumers routes later on . (1) */
         FOREACH(NETWORK_SIZE,network_data->dest_route[iterator].route_type = R_PROVIDER );
+        network_data->routeTypesArray[R_PROVIDER] = network_data->nodesCount * (network_data->nodesCount - 1);
     }
 
     /*memset(network_data->visitQueue,0,sizeof(unsigned) * NETWORK_SIZE);*/
@@ -423,27 +482,136 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
 
 }
 
-void free_link(unsigned * rt){
-    free(rt);
-}
+void network_parse_all(enum calc_type type){
+    route aux[NETWORK_SIZE];
+    unsigned auxTypeArray[R_SELF+1];
+    int sumDistanceArray[MAX_DISTANCE];
+    list_node * listptr;
+    unsigned i,id,j,k=0;
+    clock_t start, end;
+    unsigned step = network_data->nodesCount / 50 + 1;
 
-void network_destroy(){
-    unsigned iterator;
-    NULLPO_RETV(network_data);
+    memset(sumDistanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
+    memset(auxTypeArray,0,sizeof(unsigned) * (R_SELF +1));
 
-    for( iterator= 0; iterator < NETWORK_SIZE; iterator++){
-        if(network_data->nodes[iterator] == NULL) continue;
-        
-        list_free(network_data->nodes[iterator]->links[PROVIDER], (void *) free_link);
-        list_free(network_data->nodes[iterator]->links[COSTUMER],(void *) free_link);
-        list_free(network_data->nodes[iterator]->links[PEER],(void *) free_link);
-        
-        free(network_data->nodes[iterator]);
-        network_data->nodes[iterator] = NULL;
-        
+    start = clock();
+
+    printf("Calculating statistics,this might take some minutes.\n");
+    
+
+    for(i = 1,k=0; i < NETWORK_SIZE; i++){
+
+      if(i%step==0){
+            end = clock();
+            int c = (double) (end - start)/CLOCKS_PER_SEC;
+            printf("[%d%%] elapsed time: %d:%d minutes..",k*100/network_data->nodesCount,(int)c/60,(int)c%60);
+            fflush(stdout);
+            printf("\r");
+        }
+
+        if(network_data->nodes[i] != NULL){
+            /*Heuristic*/
+            if(network_data->nodes[i]->stubBy1Provider || (network_data->isCommercial && network_data->nodes[i]->adjCtr == 1))
+                continue;
+
+            network_find_paths_to(i,type);
+            k++;
+            /*Heuristic*/
+            for(listptr = network_data->nodes[i]->links[COSTUMER]; listptr != NULL; listptr = list_next(listptr)){
+                id = *((unsigned *) list_get_data(listptr));
+
+                if(!network_data->nodes[id]->stubBy1Provider)
+                    continue;
+                
+                    k++;
+                auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] + 1;
+                auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] - 1;
+                auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];
+
+                if(type & CALC_HOPS){
+                    sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                    sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+                    for(j = 2; j < MAX_DISTANCE - 1;j++){
+                        sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
+                    }     
+                }
+  
+            }
+            
+            /*Heuristic*/
+            if(network_data->isCommercial){
+                for(listptr = network_data->nodes[i]->links[PEER]; listptr != NULL; listptr = list_next(listptr)){
+                    id = *((unsigned *) list_get_data(listptr));
+
+                    if(network_data->nodes[id]->adjCtr != 1)
+                        continue;
+                        k++;
+                    auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER];
+                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER];
+                    auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];
+
+                    if(type & CALC_HOPS){
+                        sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                        sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+    
+                        for(j = 2; j < MAX_DISTANCE - 1;j++){
+                            sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
+                        }  
+                    }
+                }
+
+                for(listptr = network_data->nodes[i]->links[PROVIDER]; listptr != NULL; listptr = list_next(listptr)){
+                    id = *((unsigned *) list_get_data(listptr));
+
+                    if(network_data->nodes[id]->adjCtr != 1)
+                        continue;
+                        k++;
+                    auxTypeArray[R_COSTUMER] = auxTypeArray[COSTUMER]   +  network_data->routeTypesArray[R_COSTUMER] - 1;
+                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] + 1;
+                    auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];     
+
+                    if(type & CALC_HOPS){
+                        sumDistanceArray[1] = sumDistanceArray[1] + 1;
+                        sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
+    
+                        for(j = 2; j < MAX_DISTANCE - 1;j++){
+                            sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
+                        } 
+                    }                         
+                }
+            }
+
+            for(j = R_NONE;j <= R_SELF;j++){
+                auxTypeArray[j] =  network_data->routeTypesArray[j] + auxTypeArray[j];
+            }
+
+            for(j = 0; j < MAX_DISTANCE;j++){
+                sumDistanceArray[j] = sumDistanceArray[j] + network_data->distanceArray[j];
+            }
+
+            
+        }
+
     }
 
-    free(network_data);
+    for(j = 0; j < MAX_DISTANCE;j++){
+        network_data->distanceArray[j] = sumDistanceArray[j];
+    }
+
+    for(j = R_NONE;j <= R_SELF;j++){
+        network_data->routeTypesArray[j] = auxTypeArray[j];
+    }
+
+    memcpy(network_data->dest_route,aux,NETWORK_SIZE*sizeof(route));
+    network_data->stats = type;
+    network_data->dest = false;
+
+    end = clock();
+    int c = (double) (end - start)/CLOCKS_PER_SEC;
+
+    printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
+
+    return;
 }
 
 void network_print_log(FILE * fp){
@@ -480,16 +648,18 @@ void network_print_log(FILE * fp){
         fprintf(fp,"\tNot commercially connected.\n");      
     }
 
-    if(network_data->fullstats){
+    if(network_data->stats & CALC_TYPE){
+        fprintf(fp,"\nRoutes type stats:\n");
+        for(i = R_PROVIDER;i <R_SELF;i++){
+            fprintf(fp,"There are %d %s\n",network_data->routeTypesArray[i], routeAll[i - R_PROVIDER]);
+        }
+    }
+    if(network_data->stats & CALC_HOPS){
         fprintf(fp,"\nThere are : \n");
         for(i = 1; i < MAX_DISTANCE; i++){
             if(network_data->distanceArray[i] != 0){
                 fprintf(fp,"\t %d paths with %d hops\n",network_data->distanceArray[i],i);
             }
-        }
-        fprintf(fp,"\nRoutes type stats:\n");
-        for(i = R_PROVIDER;i <R_SELF;i++){
-            fprintf(fp,"There are %d %s\n",network_data->routeTypesArray[i], routeAll[i - R_PROVIDER]);
         }
     }
 
@@ -525,134 +695,28 @@ void network_print_log(FILE * fp){
 
 }
 
-void network_parse_all(){
-    route aux[NETWORK_SIZE];
-    unsigned auxTypeArray[R_SELF+1];
-    int sumDistanceArray[MAX_DISTANCE];
-    list_node * listptr;
-    unsigned i,id,j;
-    clock_t start, end;
+void network_destroy(){
+    unsigned iterator;
+    NULLPO_RETV(network_data);
 
-    memset(sumDistanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
-    memset(auxTypeArray,0,sizeof(unsigned) * (R_SELF +1));
-
-    start = clock();
-
-    printf("Calculating statistics,this might take some minutes.\n");
-    
-
-    for(i = 0; i < NETWORK_SIZE; i++){
-
- /*   if(i%600 ==0 ){
-            end = clock();
-            int c = (double) (end - start)/CLOCKS_PER_SEC;
-            printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
-    }
-*/
-        if(network_data->nodes[i] != NULL){
-
-
-            /*Heuristic*/
-            if(network_data->nodes[i]->stubBy1Provider || (network_data->isCommercial && network_data->nodes[i]->adjCtr == 1))
-                continue;
-
-            network_find_paths_to(i,CALC_ALL);
-
-            /*Heuristic*/
-            for(listptr = network_data->nodes[i]->links[COSTUMER]; listptr != NULL; listptr = list_next(listptr)){
-                id = *((unsigned *) list_get_data(listptr));
-
-                if(!network_data->nodes[id]->stubBy1Provider)
-                    continue;
-                
-
-                sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-                for(j = 2; j < MAX_DISTANCE - 1;j++){
-                    sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                }       
-
-                auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] + 1;
-                auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] - 1;
-                auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];
-            }
-            
-            /*Heuristic*/
-            if(network_data->isCommercial){
-                for(listptr = network_data->nodes[i]->links[PEER]; listptr != NULL; listptr = list_next(listptr)){
-                    id = *((unsigned *) list_get_data(listptr));
-
-                    if(network_data->nodes[id]->adjCtr != 1)
-                        continue;
-                    
-                    sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                    sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-
-                    for(j = 2; j < MAX_DISTANCE - 1;j++){
-                        sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                    }  
-                    
-                    auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER];
-                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER];
-                    auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];
-
-                }
-
-                for(listptr = network_data->nodes[i]->links[PROVIDER]; listptr != NULL; listptr = list_next(listptr)){
-                    id = *((unsigned *) list_get_data(listptr));
-
-                    if(network_data->nodes[id]->adjCtr != 1)
-                        continue;
-
-                    sumDistanceArray[1] = sumDistanceArray[1] + 1;
-                    sumDistanceArray[2] = sumDistanceArray[2] + network_data->distanceArray[1] -1;
-
-                    for(j = 2; j < MAX_DISTANCE - 1;j++){
-                        sumDistanceArray[j + 1]  = sumDistanceArray[j + 1] + network_data->distanceArray[j];
-                    } 
-                    
-                    auxTypeArray[R_COSTUMER] = auxTypeArray[COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] - 1;
-                    auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] + 1;
-                    auxTypeArray[R_PEER] =  auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PEER];                             
-                }
-            }
-
-            for(j = R_NONE;j <= R_SELF;j++){
-                auxTypeArray[j] =  network_data->routeTypesArray[j] + auxTypeArray[j];
-            }
-
-            for(j = 0; j < MAX_DISTANCE;j++){
-                sumDistanceArray[j] = sumDistanceArray[j] + network_data->distanceArray[j];
-            }
-
-            
-        }
-
+    for( iterator= 0; iterator < NETWORK_SIZE; iterator++){
+        if(network_data->nodes[iterator] == NULL) continue;
+        
+        list_free(network_data->nodes[iterator]->links[PROVIDER], (void *) free_link);
+        list_free(network_data->nodes[iterator]->links[COSTUMER],(void *) free_link);
+        list_free(network_data->nodes[iterator]->links[PEER],(void *) free_link);
+        
+        free(network_data->nodes[iterator]);
+        network_data->nodes[iterator] = NULL;
+        
     }
 
-
-    for(j = 0; j < MAX_DISTANCE;j++){
-        network_data->distanceArray[j] = sumDistanceArray[j] >> 1;
-    }
-
-    for(j = R_NONE;j <= R_SELF;j++){
-        network_data->routeTypesArray[j] = auxTypeArray[j];
-    }
-
-    memcpy(network_data->dest_route,aux,NETWORK_SIZE*sizeof(route));
-    network_data->fullstats = true;
-    network_data->dest = false;
-
-    end = clock();
-    int c = (double) (end - start)/CLOCKS_PER_SEC;
-
-    printf("Elapsed time: %d minutes and %d seconds!\n",(int)c/60,(int)c%60);
-
-    return;
+    list_free(network_data->top_providers,(void *) free_link);
+    free(network_data);
 }
-struct network_interface * network_init(){
-    struct network_interface * network = NULL;
 
+
+void network_init(){
     CREATE(network,1);
     network->create_from_file = network_create_from_file;
     network->ensure_no_costumer_cycle = network_ensure_no_costumer_cycle;
@@ -661,6 +725,8 @@ struct network_interface * network_init(){
     network->parse_all = network_parse_all;
     network->print_log = network_print_log;
     network->destroy = network_destroy;
+}
 
-    return network;
+void network_finalize(){
+    free(network);
 }
