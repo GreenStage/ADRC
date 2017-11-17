@@ -447,16 +447,19 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
     memset(network_data->dest_route,0,NETWORK_SIZE * sizeof(route));
     memset(network_data->distanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
 
-    memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(unsigned));
+    memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(long unsigned));
 
     network_data->dest = destination;
 
-    if(network_data->isCommercial &&  flag == CALC_TYPE){
+    if(network_data->isCommercial &&  flag & CALC_TYPE){
         /*A network being commercially connected implies that each node, in the worst case scenario,
         * can connect to all the othes via a provider route, by initiliazing all routes type to "provider",
         * we can skip iterating over all costumers routes later on . (1) */
-        FOREACH(NETWORK_SIZE,network_data->dest_route[iterator].route_type = R_PROVIDER );
-        network_data->routeTypesArray[R_PROVIDER] = network_data->nodesCount * (network_data->nodesCount - 1);
+        for(it = 0; it < NETWORK_SIZE;it++){
+            network_data->dest_route[it].route_type = R_PROVIDER;
+            network_data->dest_route[it].nHops = 99999;
+        }
+        network_data->routeTypesArray[R_PROVIDER] = network_data->nodesCount - 1;
     }
 
     /*memset(network_data->visitQueue,0,sizeof(unsigned) * NETWORK_SIZE);*/
@@ -485,7 +488,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
 
 void network_parse_all(enum calc_type type){
     route aux[NETWORK_SIZE];
-    unsigned auxTypeArray[R_SELF+1];
+    long unsigned auxTypeArray[R_SELF+1];
     int sumDistanceArray[MAX_DISTANCE];
     list_node * listptr;
     unsigned i,id,j,k=0;
@@ -493,7 +496,8 @@ void network_parse_all(enum calc_type type){
     unsigned step = network_data->nodesCount / 50 + 1;
 
     memset(sumDistanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
-    memset(auxTypeArray,0,sizeof(unsigned) * (R_SELF +1));
+    memset(auxTypeArray,0,sizeof(long unsigned) * (R_SELF +1));
+    memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(long unsigned));
 
     start = clock();
 
@@ -501,7 +505,7 @@ void network_parse_all(enum calc_type type){
     
 
     for(i = 1,k=0; i < NETWORK_SIZE; i++){
-
+#ifndef DEBUG
       if(i%step==0){
             end = clock();
             int c = (double) (end - start)/CLOCKS_PER_SEC;
@@ -509,7 +513,7 @@ void network_parse_all(enum calc_type type){
             fflush(stdout);
             printf("\r");
         }
-
+#endif
         if(network_data->nodes[i] != NULL){
             /*Heuristic*/
             if(network_data->nodes[i]->stubBy1Provider || (network_data->isCommercial && network_data->nodes[i]->adjCtr == 1))
@@ -691,13 +695,17 @@ void network_print_log(FILE * fp){
                         fprintf(fp," with %d hops",network_data->dest_route[iterator].nHops); 
                     }
                 }
+                else if(network_data->dest_route[iterator].route_type == R_SELF){
+                    fprintf(fp," is the destination itself");
+                }
+                else if(network_data->dest_route[iterator].route_type == R_NONE){
+                    fprintf(fp," has no route");
+                }
                 fprintf(fp,"\n");
                    
             }
         }
     }
-
-
 }
 
 void network_destroy(){
