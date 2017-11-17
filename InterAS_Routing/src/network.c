@@ -6,27 +6,27 @@
 #include <time.h>
 
 enum link_type {
-    COSTUMER = 0,
+    CUSTOMER = 0,
     PEER,
     PROVIDER
 };
 enum link_type reverseLink[]={
     PROVIDER,
     PEER,
-    COSTUMER
+    CUSTOMER
 };
 
 enum route_type{
     R_NONE = 0,
     R_PROVIDER,
     R_PEER,
-    R_COSTUMER,
+    R_CUSTOMER,
     R_SELF
 };
 
 
 typedef struct node_{
-    list_node * links[3]; /*PROVIDER,COSTUMER,PEER*/
+    list_node * links[3]; /*PROVIDER,CUSTOMER,PEER*/
     int adjCtr;
     bool stubBy1Provider;
     int topTierId;
@@ -62,9 +62,9 @@ typedef struct graph_{
     long int visitQueuePos;
 
     /*Graph information*/
-    bool hasCostumerCycles,isCommercial;
+    bool hasCustomerCycles,isCommercial;
 
-    unsigned costumerPaths, peerPaths, providerPaths;
+    unsigned customerPaths, peerPaths, providerPaths;
     unsigned nodesCount, edgesCount;
     enum calc_type flag;
 
@@ -128,7 +128,7 @@ bool network_create_from_file(FILE * fp){
                 type = PEER;
                 break;
             case 3:
-                type = COSTUMER;
+                type = CUSTOMER;
                 break;
         }
 
@@ -216,7 +216,7 @@ void network_parse_connected(unsigned index,enum link_type type){
     for(aux = network_data->nodes[index]->links[type]; aux!= NULL; aux = list_next(aux)){
         peer =  * ((unsigned *) list_get_data(aux));
         if(network_data->onStack[peer]){
-            network_data->hasCostumerCycles = true;
+            network_data->hasCustomerCycles = true;
 #ifdef DEBUG
             printf("Revisit attempt at index %d\n",index);
 #endif
@@ -232,36 +232,36 @@ void network_parse_connected(unsigned index,enum link_type type){
     return;
 }
 
-bool network_ensure_no_costumer_cycle(){
+bool network_ensure_no_customer_cycle(){
     unsigned peer;
 
-    NULLPO_RETRE(network_data,false,"ERROR: network_ensure_no_costumer cycle: network is null.");
+    NULLPO_RETRE(network_data,false,"ERROR: network_ensure_no_customer cycle: network is null.");
 
     network_data->visitQueuePos = network_data->nodesCount -1;
-    network_data->hasCostumerCycles = false;
+    network_data->hasCustomerCycles = false;
 
     for(peer = network_data->visitQueue[0]; network_data->visitQueuePos > -1 ; peer = network_data->visitQueue[0]){
 
         network_data->onStack[peer] = true;
-        network_parse_connected(peer,COSTUMER);
+        network_parse_connected(peer,CUSTOMER);
         network_data->onStack[peer] = false;
 
-        if(network_data->hasCostumerCycles) break;
+        if(network_data->hasCustomerCycles) break;
     }
 #ifdef DEBUG
-    if( network_data->hasCostumerCycles){
-        printf("DEBUG - network_ensure_no_costumer_cycle: found costumer cycles.\n");
+    if( network_data->hasCustomerCycles){
+        printf("DEBUG - network_ensure_no_customer_cycle: found customer cycles.\n");
     }
-    else  printf("DEBUG - network_ensure_no_costumer_cycle: No costumer cycles found.\n");
+    else  printf("DEBUG - network_ensure_no_customer_cycle: No customer cycles found.\n");
   
 #endif
     network_data->visitQueuePos = network_data->nodesCount -1;
-    return !network_data->hasCostumerCycles;
+    return !network_data->hasCustomerCycles;
 }
 
 /*
 The algorithm implement here is based on the fact that if a provider can reach a node,
-so can its costumers.
+so can its customers.
 From here we can make "groups" of strongly connected nodes
 */
 bool network_check_commercial(){
@@ -273,7 +273,7 @@ bool network_check_commercial(){
     list_node * ptr1, * ptr2;
 
     NULLPO_RETRE(network_data,false,"Error - network_check_commercial: network is null.");
-    ASSERT_RETR(network_data->hasCostumerCycles,false);
+    ASSERT_RETR(network_data->hasCustomerCycles,false);
     NULLPO_RETR(network_data->top_providers,false);
 
     CREATE(topTierPositions,network_data->top_provider_ctr);
@@ -282,6 +282,7 @@ bool network_check_commercial(){
 
     network_data->visitQueuePos = network_data->nodesCount -1;
 
+    /*Fill the matrix with "true" for each peer link*/
     for(ptr1 = network_data->top_providers; ptr1 != NULL; ptr1 = list_next(ptr1)){
         id1 =  *( (unsigned *) list_get_data(ptr1));
         topTierPositions[network_data->nodes[id1]->topTierId] = id1;
@@ -294,6 +295,7 @@ bool network_check_commercial(){
     }   
 
     network_data->isCommercial = true;
+    /*Check if the network is commercially connected*/
     for(id1 = 0; id1 < network_data->top_provider_ctr;id1++){
         for(id2 = 0; id2 < network_data->top_provider_ctr;id2++){
             if(id1 == id2) continue;
@@ -312,6 +314,7 @@ bool network_check_commercial(){
         while(1){
             if(scanf("%c",&response)){
                 if(response == 'y'){
+                    /*For each peer without links to all other, create the missing links*/
                     for(id1 = 0; id1 < network_data->top_provider_ctr;id1++){
                         for(id2 = 0; id2 < network_data->top_provider_ctr;id2++){
                             if(id1 == id2) continue;
@@ -357,10 +360,10 @@ void network_update_dest_route(unsigned nodeIndex){
     aux_route->advertiser = nodeIndex;
     aux_route->route_type = R_NONE;
 
-    /*Adversite costumer routes to all neighbors*/
-    if(network_data->dest_route[nodeIndex].route_type >= R_COSTUMER){
+    /*Adversite customer routes to all neighbors*/
+    if(network_data->dest_route[nodeIndex].route_type >= R_CUSTOMER){
 
-        aux_route->route_type = R_COSTUMER;
+        aux_route->route_type = R_CUSTOMER;
         for(ptr = network_data->nodes[nodeIndex]->links[PROVIDER];ptr != NULL;ptr = list_next(ptr)){
 
             id = *((unsigned *) list_get_data(ptr));
@@ -370,7 +373,7 @@ void network_update_dest_route(unsigned nodeIndex){
                 printf("Node %d route updated to Costumer with %d hops from %d\n",id,aux_route->nHops,nodeIndex);
 #endif
                 network_data->routeTypesArray[network_data->dest_route[id].route_type]--;
-                network_data->routeTypesArray[R_COSTUMER]++;
+                network_data->routeTypesArray[R_CUSTOMER]++;
 
 
                 memcpy(&network_data->dest_route[id],aux_route,sizeof(route));
@@ -413,7 +416,7 @@ void network_update_dest_route(unsigned nodeIndex){
         /*Or user choose to calculate number of hops/ advertisers aswell*/
         aux_route->route_type = R_PROVIDER;
 
-        for(ptr = network_data->nodes[nodeIndex]->links[COSTUMER];ptr != NULL;ptr = list_next(ptr)){
+        for(ptr = network_data->nodes[nodeIndex]->links[CUSTOMER];ptr != NULL;ptr = list_next(ptr)){
             id = *((unsigned *) list_get_data(ptr));
 
             if ( routecmp(aux_route,&network_data->dest_route[id]) || network_data->dest_route[id].advertiser == nodeIndex){
@@ -454,7 +457,7 @@ void network_find_paths_to(unsigned destination, enum calc_type flag){
     if(network_data->isCommercial &&  flag & CALC_TYPE){
         /*A network being commercially connected implies that each node, in the worst case scenario,
         * can connect to all the othes via a provider route, by initiliazing all routes type to "provider",
-        * we can skip iterating over all costumers routes later on . (1) */
+        * we can skip iterating over all customers routes later on . (1) */
         for(it = 0; it < NETWORK_SIZE;it++){
             network_data->dest_route[it].route_type = R_PROVIDER;
             network_data->dest_route[it].nHops = -1;
@@ -516,21 +519,24 @@ void network_parse_all(enum calc_type type){
         }
 #endif
         if(network_data->nodes[i] != NULL){
-            /*Heuristic*/
+            /*Heuristic skip stub nodes if only connected to a provider, or if they only have one link
+            and the network is commercially connected*/
             if(network_data->nodes[i]->stubBy1Provider || (network_data->isCommercial && network_data->nodes[i]->adjCtr == 1))
                 continue;
 
             network_find_paths_to(i,type);
             k++;
+
             /*Heuristic*/
-            for(listptr = network_data->nodes[i]->links[COSTUMER]; listptr != NULL; listptr = list_next(listptr)){
+            for(listptr = network_data->nodes[i]->links[CUSTOMER]; listptr != NULL; listptr = list_next(listptr)){
                 id = *((unsigned *) list_get_data(listptr));
 
                 if(!network_data->nodes[id]->stubBy1Provider)
                     continue;
                 
-                    k++;
-                auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER] + 1;
+                k++;
+                /*Routes to reach this node will be computed from nodes to reach node i*/
+                auxTypeArray[R_CUSTOMER] = auxTypeArray[R_CUSTOMER] +  network_data->routeTypesArray[R_CUSTOMER] + 1;
                 auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] - 1;
                 auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];
 
@@ -545,14 +551,17 @@ void network_parse_all(enum calc_type type){
             }
             
             /*Heuristic*/
+
             if(network_data->isCommercial){
                 for(listptr = network_data->nodes[i]->links[PEER]; listptr != NULL; listptr = list_next(listptr)){
                     id = *((unsigned *) list_get_data(listptr));
 
                     if(network_data->nodes[id]->adjCtr != 1)
                         continue;
-                        k++;
-                    auxTypeArray[R_COSTUMER] = auxTypeArray[R_COSTUMER] +  network_data->routeTypesArray[R_COSTUMER];
+
+                    k++;
+                    /*Routes to reach this node will be computed from nodes to reach node i*/
+                    auxTypeArray[R_CUSTOMER] = auxTypeArray[R_CUSTOMER] +  network_data->routeTypesArray[R_CUSTOMER];
                     auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER];
                     auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];
 
@@ -571,8 +580,10 @@ void network_parse_all(enum calc_type type){
 
                     if(network_data->nodes[id]->adjCtr != 1)
                         continue;
-                        k++;
-                    auxTypeArray[R_COSTUMER] = auxTypeArray[COSTUMER]   +  network_data->routeTypesArray[R_COSTUMER] - 1;
+                    k++;
+                    
+                    /*Routes to reach this node will be computed from nodes to reach node i*/
+                    auxTypeArray[R_CUSTOMER] = auxTypeArray[CUSTOMER]   +  network_data->routeTypesArray[R_CUSTOMER] - 1;
                     auxTypeArray[R_PROVIDER] = auxTypeArray[R_PROVIDER] +  network_data->routeTypesArray[R_PROVIDER] + 1;
                     auxTypeArray[R_PEER]     = auxTypeArray[R_PEER]     +  network_data->routeTypesArray[R_PEER];     
 
@@ -626,13 +637,13 @@ void network_print_log(FILE * fp){
         "has no route to destination",
         "elects a provider route",
         "elects a peer route",
-        "elects a costumer route",
+        "elects a customer route",
         "is the destination itself"
     };
     char routeAll[][50] = {
         "provider routes elected",
         "peer routes elected",
-        "costumer routes elected"
+        "customer routes elected"
     };
 
     NULLPO_RETVE(network_data,"Network is null");
@@ -641,11 +652,11 @@ void network_print_log(FILE * fp){
     fprintf(fp,"Network Info:\n");
     fprintf(fp,"\t%d Nodes, %d Edges\n",network_data->nodesCount,network_data->edgesCount); 
 
-    if(network_data->hasCostumerCycles){
-        fprintf(fp,"\tNetwork has costumer cycles.\n");    
+    if(network_data->hasCustomerCycles){
+        fprintf(fp,"\tNetwork has customer cycles.\n");    
         return;  
     } 
-    else fprintf(fp,"\tNo costumer cycles found.\n");
+    else fprintf(fp,"\tNo customer cycles found.\n");
     
     if(network_data->isCommercial){
         fprintf(fp,"\tCommercially connected.\n");      
@@ -655,7 +666,7 @@ void network_print_log(FILE * fp){
     }
 
     if(network_data->stats & CALC_TYPE){
-        long unsigned sum = network_data->routeTypesArray[R_COSTUMER] + network_data->routeTypesArray[R_PEER]
+        long unsigned sum = network_data->routeTypesArray[R_CUSTOMER] + network_data->routeTypesArray[R_PEER]
                             + network_data->routeTypesArray[R_PROVIDER];
         fprintf(fp,"\nRoutes type stats:\n");
         for(i = R_PROVIDER;i <R_SELF;i++){
@@ -718,7 +729,7 @@ void network_destroy(){
         if(network_data->nodes[iterator] == NULL) continue;
         
         list_free(network_data->nodes[iterator]->links[PROVIDER], (void *) free_link);
-        list_free(network_data->nodes[iterator]->links[COSTUMER],(void *) free_link);
+        list_free(network_data->nodes[iterator]->links[CUSTOMER],(void *) free_link);
         list_free(network_data->nodes[iterator]->links[PEER],(void *) free_link);
         
         free(network_data->nodes[iterator]);
@@ -734,7 +745,7 @@ void network_destroy(){
 void network_init(){
     CREATE(network,1);
     network->create_from_file = network_create_from_file;
-    network->ensure_no_costumer_cycle = network_ensure_no_costumer_cycle;
+    network->ensure_no_customer_cycle = network_ensure_no_customer_cycle;
     network->check_commercial = network_check_commercial;
     network->find_paths_to = network_find_paths_to;
     network->parse_all = network_parse_all;

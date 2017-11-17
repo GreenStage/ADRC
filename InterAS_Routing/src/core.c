@@ -37,7 +37,7 @@ int main(int argc, char * argv[]){
     
     ASSERT_RETRE(quit == true,EXIT_FAILURE,"Cannot create network from file.");
     
-    ASSERT_RETRE(!network->ensure_no_costumer_cycle(),EXIT_COSTUMER_CYCLE,"Network has costumer cycles.");
+    ASSERT_RETRE(!network->ensure_no_customer_cycle(),EXIT_CUSTOMER_CYCLE,"Network has customer cycles.");
     
     if(network->check_commercial()){
         printf("Network is commercially connected.\n");
