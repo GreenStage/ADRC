@@ -55,7 +55,8 @@ typedef struct graph_{
     /*Visited nodes stack on the end of the array, separated from the 
      *unvisited ones by visitQueuePos*/
     /*It is treated like a heap on statistic calculation*/
-    unsigned visitQueue[NETWORK_SIZE];
+    /*Should have plenty of space for repeated visiting intents*/
+    unsigned visitQueue[3 * NETWORK_SIZE];
 
     /* "To visit" / "Visited" divider*/
     long int visitQueuePos;
@@ -264,9 +265,8 @@ so can its costumers.
 From here we can make "groups" of strongly connected nodes
 */
 bool network_check_commercial(){
-    unsigned id1,id2,count;
+    unsigned id1,id2;
     unsigned * appendNode;
-    bool retval;
     bool ** topTierPeersMatrix;
     unsigned * topTierPositions;
 
@@ -306,7 +306,6 @@ bool network_check_commercial(){
   
     if(!network_data->isCommercial){
         char response;
-        unsigned i,j;
         printf("network_check_commercial: network is not commercially connected\n" );
         printf("Do you wish to make the network commercially connected (create missing peer links between tier 1 providers)?\n");
         printf("(y) / (n)\n");
@@ -429,6 +428,7 @@ void network_update_dest_route(unsigned nodeIndex){
                 /*Add to visit queue*/
                 network_data->visitQueuePos++;
                 network_data->visitQueue[network_data->visitQueuePos] = id;
+                
                 heap_fix_up(network_data->visitQueue,network_data->visitQueuePos,routecmpById);
             }
         }
@@ -493,8 +493,9 @@ void network_parse_all(enum calc_type type){
     list_node * listptr;
     unsigned i,id,j,k=0;
     clock_t start, end;
+#ifndef DEBUG
     unsigned step = network_data->nodesCount / 50 + 1;
-
+#endif
     memset(sumDistanceArray,0,sizeof(unsigned) * MAX_DISTANCE);
     memset(auxTypeArray,0,sizeof(long unsigned) * (R_SELF +1));
     memset(network_data->routeTypesArray,0, (R_SELF +1) * sizeof(long unsigned));
@@ -706,6 +707,7 @@ void network_print_log(FILE * fp){
             }
         }
     }
+    printf("Log file generated in /logs\n");
 }
 
 void network_destroy(){

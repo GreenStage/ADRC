@@ -63,18 +63,66 @@ network_update_dest_route(node){
     new_route.nHops := node.route.nHops + 1
     new_route.advertise := node
 
-    speedCalc := true if network is commercial and user wants to calculate only the type of routes
+    speedCalc := true if network is commercial and user
+                 wants to calculate only the type of routes
 
     for every node.links.type.neighbor:
         new_route.type = INVERSE(type)
-        if links.type.neighbor.route is worse then new_route or links.type.neighbor.route.advertiser == node
-            if node.route.type == COSTUMER or route.isDestination or (node.links.type == COSTUMER AND speedCalc)
+
+        if links.type.neighbor.route is worse then new_route
+           or links.type.neighbor.route.advertiser == node:
+
+            if node.route.type == COSTUMER or route.isDestination 
+               or (node.links.type == COSTUMER AND speedCalc:
+
                 node.neighbor.route := new_route
-                network_update_dest_route(node)
+                nodes.not_visited.add(node.links.type.neighbor)
+                nodes.not_visited.fixHeapUp
             end if
         end if
     end for
-        
+    
 }
 
-network_find_paths_to(destination):
+network_find_paths_to(destination){
+    if network.isCommercial and network.calctype = TYPE_ONLY
+        initialize all routes type to PROVIDER
+    end if
+
+    nodes.not_visited[0] := destination
+    for node : nodes.not_visited:
+        network_update_dest_route(node)
+        nodes.not_visited.remove(node)
+        nodes.not_visited.fixHeapDown
+    end for
+
+}
+
+network_parse_all(type){
+    for node : network.nodes:
+
+        if (network.isCommercial and node.hasOnlyOneLink) 
+            or (node.hasOnlyOneLink and node.onlyLinkType == PROVIDER):
+
+             continue
+        end if
+
+        temporary_stats = network_find_paths_to(node)
+
+        for each node.link.peer:
+
+            if network.isCommercial and node.link.peer.hasOnlyOneLink:
+                statistics += calc_from_neighbor(temporary_stats)
+
+            else if node.link.peer.hasOnlyOneLink and 
+                    node.link.peer.onlyLinkType == PROVIDER:
+
+                statistics += calc_from_neighbor(temporary_stats)
+            end if
+
+        end for
+        statistics += temporary_stats
+    end for
+
+    return statistics
+}

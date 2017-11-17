@@ -98,7 +98,7 @@ int main(int argc, char * argv[]){
                         }
                         else network->print_log(stdout);
                     }
-
+                    FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
                     break;
                 }
 
@@ -108,6 +108,7 @@ int main(int argc, char * argv[]){
             char response;
             while(1){
                 printf("Should the statistics contain number of hops info?\n");
+                printf("This will slow the computation.\n");
                 printf("(y) / (n) \n");
                 if(scanf("%c",&response)){
                     if(response == 'y'){
@@ -123,6 +124,7 @@ int main(int argc, char * argv[]){
                     }         
                 }
             }
+            FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
         }
         else if(command == 'l'){
             printf("Insert output log file name or \"stdout\" in order to print to the console. \n");
@@ -145,6 +147,7 @@ int main(int argc, char * argv[]){
                 }
                 else network->print_log(stdout);
             }
+            FOREACH((int)sizeof(help)/sizeof(help[0]),printf("%s",help[iterator]));
         }
         else if(command == 'q'){
             quit = true;

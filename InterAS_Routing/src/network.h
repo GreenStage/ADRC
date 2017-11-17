@@ -1,7 +1,7 @@
 #ifndef NETWORK_HEADER
 #define NETWORK_HEADER
 
-#define NETWORK_SIZE 65651
+#define NETWORK_SIZE 70000
 #define MAX_DISTANCE 1000
 
 enum calc_type{
@@ -10,7 +10,6 @@ enum calc_type{
     CALC_HOPS = 0x2,
     CALC_ADVERTISER = 0x4,
     CALC_ALL = CALC_HOPS | CALC_ADVERTISER | CALC_TYPE,
-    
 };
 
 struct network_interface{
