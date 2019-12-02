@@ -1,6 +1,8 @@
-#InterAS_Routing
+# InterAS_Routing
 
 Functions:
+
+```
 
 network_parse_connected(index,type){
     index.visited := true;
@@ -126,3 +128,5 @@ network_parse_all(type){
 
     return statistics
 }
+
+```
